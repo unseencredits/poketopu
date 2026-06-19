@@ -1,9 +1,12 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getSets } from '@/lib/pokemon-tcg'
 import MobileFilter from './MobileFilter'
+import KartlarFiltre from './KartlarFiltre'
 import type { TCGSet } from '@/lib/pokemon-tcg'
+import type { Condition } from '@/types'
 
 interface Props {
   searchParams: Promise<Record<string, string>>
@@ -34,7 +37,14 @@ const SERIES_ORDER = [
   'Base',
 ]
 
-async function getProducts(seri: string | null, setId: string | null): Promise<{ products: ProductCard[]; total: number }> {
+interface Filters {
+  kondisyon?: string
+  sirala?: string
+  min?: string
+  max?: string
+}
+
+async function getProducts(seri: string | null, setId: string | null, filters: Filters = {}): Promise<{ products: ProductCard[]; total: number }> {
   const supabase = await createClient()
 
   let productIds: string[] | null = null
@@ -51,31 +61,37 @@ async function getProducts(seri: string | null, setId: string | null): Promise<{
 
   let query = supabase
     .from('listings')
-    .select('product_id, product:products(id,name,set_name,number,image_url)')
+    .select('product_id, price, product:products(id,name,set_name,number,image_url)')
     .eq('status', 'active')
     .eq('category', 'card')
     .not('product_id', 'is', null)
 
-  if (productIds) {
-    query = query.in('product_id', productIds)
-  }
+  if (productIds) query = query.in('product_id', productIds)
+  if (filters.kondisyon) query = query.eq('condition', filters.kondisyon as Condition)
+  if (filters.min) query = query.gte('price', Number(filters.min))
+  if (filters.max) query = query.lte('price', Number(filters.max))
 
   const { data } = await query
 
-  // Ürün bazında grupla ve say
-  const map = new Map<string, ProductCard>()
+  const map = new Map<string, ProductCard & { minPrice: number }>()
   for (const l of data ?? []) {
     if (!l.product_id || !l.product) continue
     const p = l.product as unknown as { id: string; name: string; set_name: string | null; number: string | null; image_url: string | null }
     const existing = map.get(l.product_id)
     if (existing) {
       existing.count++
+      if (l.price < existing.minPrice) existing.minPrice = l.price
     } else {
-      map.set(l.product_id, { id: p.id, name: p.name, set_name: p.set_name, number: p.number, image_url: p.image_url, count: 1 })
+      map.set(l.product_id, { id: p.id, name: p.name, set_name: p.set_name, number: p.number, image_url: p.image_url, count: 1, minPrice: l.price })
     }
   }
 
-  const products = Array.from(map.values()).sort((a, b) => b.count - a.count)
+  let products = Array.from(map.values())
+
+  if (filters.sirala === 'fiyat-asc') products.sort((a, b) => a.minPrice - b.minPrice)
+  else if (filters.sirala === 'fiyat-desc') products.sort((a, b) => b.minPrice - a.minPrice)
+  else products.sort((a, b) => b.count - a.count)
+
   return { products, total: products.length }
 }
 
@@ -99,7 +115,14 @@ export default async function KartlarPage({ searchParams }: Props) {
   // Seçilen set'in adını bul
   const selectedSet = selectedSetId ? allSets.find(s => s.id === selectedSetId) : null
 
-  const { products, total } = await getProducts(selectedSeri, selectedSetId)
+  const filters: Filters = {
+    kondisyon: sp.kondisyon,
+    sirala: sp.sirala,
+    min: sp.min,
+    max: sp.max,
+  }
+  const { products, total } = await getProducts(selectedSeri, selectedSetId, filters)
+  const activeFilterCount = [sp.kondisyon, sp.sirala, sp.min, sp.max].filter(Boolean).length
 
   // Sayfa başlığı
   const pageTitle = selectedSet
@@ -192,17 +215,27 @@ export default async function KartlarPage({ searchParams }: Props) {
                 <p className="text-xs text-gray-400 mb-1">{selectedSeri} · {selectedSet.name}</p>
               )}
               <h1 className="text-xl font-bold text-gray-900">{pageTitle}</h1>
-              <p className="text-sm text-gray-400 mt-0.5">{total.toLocaleString('tr-TR')} farklı kart</p>
+              <p className="text-sm text-gray-400 mt-0.5">
+                {total.toLocaleString('tr-TR')} farklı kart
+                {activeFilterCount > 0 && <span className="ml-1 text-primary">· {activeFilterCount} filtre aktif</span>}
+              </p>
             </div>
 
-            {/* Mobil: bottom sheet filtre */}
-            <div className="lg:hidden flex-shrink-0 mt-0.5">
-              <MobileFilter
-                setsBySeries={setsBySeries}
-                selectedSeri={selectedSeri}
-                selectedSetId={selectedSetId}
-                selectedSetName={selectedSet?.name ?? null}
-              />
+            {/* Filtre butonları */}
+            <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+              {/* Mobil: set filtresi */}
+              <div className="lg:hidden">
+                <MobileFilter
+                  setsBySeries={setsBySeries}
+                  selectedSeri={selectedSeri}
+                  selectedSetId={selectedSetId}
+                  selectedSetName={selectedSet?.name ?? null}
+                />
+              </div>
+              {/* Sıralama + kondisyon + fiyat filtresi */}
+              <Suspense>
+                <KartlarFiltre />
+              </Suspense>
             </div>
           </div>
 

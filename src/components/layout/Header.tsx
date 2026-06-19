@@ -51,25 +51,27 @@ export default function Header() {
   }, [pathname])
 
   // Mesaj okunduğunda conversation sayfasından event gelir
+  // userId beklenmeden kayıt olunur — kullanıcı konuşmadan çıkmadan önce event gelebilir
   useEffect(() => {
-    if (!userId) return
     const refresh = () => {
       const supabase = createClient()
       async function recount() {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
         const { data: convs } = await supabase.from('conversations').select('id')
-          .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+          .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
         const convIds = (convs ?? []).map((c: { id: string }) => c.id)
         if (!convIds.length) { setUnread(0); return }
         const { count } = await supabase.from('messages')
           .select('*', { count: 'exact', head: true })
-          .eq('is_read', false).neq('sender_id', userId).in('conversation_id', convIds)
+          .eq('is_read', false).neq('sender_id', user.id).in('conversation_id', convIds)
         setUnread(count ?? 0)
       }
       recount()
     }
     window.addEventListener('unread-refresh', refresh)
     return () => window.removeEventListener('unread-refresh', refresh)
-  }, [userId])
+  }, [])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
