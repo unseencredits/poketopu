@@ -7,11 +7,12 @@ import Image from 'next/image'
 import {
   User, Store, Package, LogOut, ChevronRight, Plus,
   Pencil, Eye, EyeOff, Trash2, ImagePlus, X, Upload,
+  Banknote, ShoppingBag, AlertCircle,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import type { Profile, Store as StoreType, Listing } from '@/types'
+import type { Profile, Store as StoreType, Listing, ListingStatus } from '@/types'
 
 const MAX_PHOTOS = 4
 
@@ -20,6 +21,7 @@ export default function ProfilPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [store, setStore] = useState<StoreType | null>(null)
   const [listings, setListings] = useState<Listing[]>([])
+  const [purchases, setPurchases] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
 
@@ -34,6 +36,17 @@ export default function ProfilPage() {
 
   // Delete confirmation
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+  // Satıldı modal state
+  const [soldModalId, setSoldModalId] = useState<string | null>(null)
+  const [soldBuyers, setSoldBuyers] = useState<Profile[]>([])
+  const [soldBuyersLoading, setSoldBuyersLoading] = useState(false)
+  const [soldOutside, setSoldOutside] = useState(false)
+  const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null)
+  const [markingSold, setMarkingSold] = useState(false)
+
+  // Satın almadım
+  const [disclaimId, setDisclaimId] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -58,8 +71,17 @@ export default function ProfilPage() {
           .neq('status', 'deleted')
           .order('created_at', { ascending: false })
           .limit(50)
-        setListings((myListings as Listing[]) ?? [])
+        setListings((myListings as unknown as Listing[]) ?? [])
       }
+
+      // Satın aldıklarım
+      const { data: myPurchases } = await supabase
+        .from('listings')
+        .select('*, product:products(id,name,set_name,image_url)')
+        .eq('sold_to_user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(20)
+      setPurchases((myPurchases as unknown as Listing[]) ?? [])
 
       setLoading(false)
     }
@@ -72,6 +94,8 @@ export default function ProfilPage() {
     router.push('/')
     router.refresh()
   }
+
+  // ─── Edit ───────────────────────────────────────────────────────────────────
 
   function openEdit(listing: Listing) {
     setEditingId(listing.id)
@@ -125,14 +149,18 @@ export default function ProfilPage() {
     setUploadingPhoto(false)
   }
 
+  // ─── Toggle status ───────────────────────────────────────────────────────────
+
   async function toggleStatus(listing: Listing) {
     const newStatus = listing.status === 'active' ? 'reserved' : 'active'
     const supabase = createClient()
     const { error } = await supabase.from('listings').update({ status: newStatus }).eq('id', listing.id)
     if (!error) {
-      setListings(prev => prev.map(l => l.id === listing.id ? { ...l, status: newStatus as Listing['status'] } : l))
+      setListings(prev => prev.map(l => l.id === listing.id ? { ...l, status: newStatus as ListingStatus } : l))
     }
   }
+
+  // ─── Delete ──────────────────────────────────────────────────────────────────
 
   async function deleteListing(listingId: string) {
     const supabase = createClient()
@@ -142,6 +170,81 @@ export default function ProfilPage() {
       setConfirmDeleteId(null)
     }
   }
+
+  // ─── Satıldı modal ───────────────────────────────────────────────────────────
+
+  async function openSoldModal(listing: Listing) {
+    setSoldModalId(listing.id)
+    setSoldOutside(false)
+    setSelectedBuyerId(null)
+    setSoldBuyersLoading(true)
+
+    const supabase = createClient()
+    const { data: convs } = await supabase
+      .from('conversations')
+      .select('buyer_id')
+      .eq('listing_id', listing.id)
+
+    const buyerIds = [...new Set((convs ?? []).map((c: { buyer_id: string }) => c.buyer_id))]
+    let buyers: Profile[] = []
+
+    if (buyerIds.length > 0) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url')
+        .in('id', buyerIds)
+      buyers = (profs as Profile[]) ?? []
+    }
+
+    setSoldBuyers(buyers)
+    setSoldBuyersLoading(false)
+  }
+
+  async function confirmSold() {
+    if (!soldModalId) return
+    if (!soldOutside && !selectedBuyerId) return
+    setMarkingSold(true)
+    const supabase = createClient()
+
+    const update: Record<string, unknown> = { status: 'sold' }
+    if (soldOutside) {
+      update.sold_outside = true
+      update.sold_to_user_id = null
+    } else {
+      update.sold_to_user_id = selectedBuyerId
+      update.sold_outside = false
+    }
+
+    const { error } = await supabase.from('listings').update(update).eq('id', soldModalId)
+    if (!error) {
+      setListings(prev => prev.map(l =>
+        l.id === soldModalId
+          ? { ...l, status: 'sold' as ListingStatus, sold_outside: soldOutside, sold_to_user_id: selectedBuyerId }
+          : l
+      ))
+      setSoldModalId(null)
+    }
+    setMarkingSold(false)
+  }
+
+  // ─── Ben satın almadım ───────────────────────────────────────────────────────
+
+  async function disclaimPurchase(listingId: string) {
+    if (!userId) return
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('listings')
+      .update({ sold_to_user_id: null })
+      .eq('id', listingId)
+      .eq('sold_to_user_id', userId)
+
+    if (!error) {
+      setPurchases(prev => prev.filter(l => l.id !== listingId))
+      setDisclaimId(null)
+    }
+  }
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -157,10 +260,11 @@ export default function ProfilPage() {
   if (!profile) return null
 
   const activeCount = listings.filter(l => l.status === 'active').length
-  const soldCount = listings.filter(l => l.status === 'sold').length
+  const soldCount = listings.filter(l => l.status === 'sold' && !l.sold_outside).length
   const pausedCount = listings.filter(l => l.status === 'reserved').length
 
   const editingListing = listings.find(l => l.id === editingId)
+  const soldModalListing = listings.find(l => l.id === soldModalId)
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
@@ -258,12 +362,12 @@ export default function ProfilPage() {
               const title = listing.custom_title ?? (listing as Listing & { product?: { name: string } }).product?.name ?? '—'
               const img = listing.photos?.[0] ?? (listing as Listing & { product?: { image_url: string | null } }).product?.image_url
               const isPaused = listing.status === 'reserved'
+              const isSold = listing.status === 'sold'
               const isDelConfirm = confirmDeleteId === listing.id
 
               return (
                 <div key={listing.id}>
-                  {/* İlan satırı */}
-                  <div className={`flex items-center gap-3 p-4 transition-opacity ${isPaused ? 'opacity-40' : ''}`}>
+                  <div className={`flex items-center gap-3 p-4 transition-opacity ${isPaused ? 'opacity-40' : isSold ? 'opacity-60' : ''}`}>
                     {/* Küçük resim */}
                     <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
                       {img && (
@@ -283,8 +387,9 @@ export default function ProfilPage() {
                           'bg-gray-50 text-gray-400'
                         }`}>
                           {listing.status === 'active' ? 'Aktif' :
-                           listing.status === 'sold' ? 'Satıldı' :
-                           listing.status === 'reserved' ? 'Yayından Kaldırıldı' : '—'}
+                           listing.status === 'sold'
+                             ? (listing.sold_outside ? 'Satıldı (Dışarıda)' : 'Satıldı')
+                             : listing.status === 'reserved' ? 'Yayından Kaldırıldı' : '—'}
                         </span>
                         <span className="text-sm font-bold text-gray-900">
                           {listing.price.toLocaleString('tr-TR')} ₺
@@ -293,7 +398,7 @@ export default function ProfilPage() {
                     </div>
 
                     {/* Aksiyonlar */}
-                    {listing.status !== 'sold' && (
+                    {!isSold && (
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         {/* Düzenle */}
                         <Sheet open={editingId === listing.id} onOpenChange={open => { if (!open) setEditingId(null) }}>
@@ -311,7 +416,6 @@ export default function ProfilPage() {
 
                             {editingListing && (
                               <div className="space-y-5">
-                                {/* Fiyat */}
                                 <div>
                                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Fiyat (₺)</label>
                                   <div className="relative">
@@ -327,7 +431,6 @@ export default function ProfilPage() {
                                   </div>
                                 </div>
 
-                                {/* Notlar */}
                                 <div>
                                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Açıklama / Not</label>
                                   <textarea
@@ -339,20 +442,16 @@ export default function ProfilPage() {
                                   />
                                 </div>
 
-                                {/* Fotoğraflar */}
                                 <div>
                                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
                                     Fotoğraflar ({editPhotos.length}/{MAX_PHOTOS})
                                   </label>
-
                                   <div className="grid grid-cols-4 gap-2 mb-3">
                                     {editPhotos.map((url, i) => (
                                       <div key={url} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
                                         <Image src={url} alt={`Fotoğraf ${i + 1}`} fill className="object-cover" />
                                         {i === 0 && (
-                                          <div className="absolute top-1 left-1 bg-black/60 text-white text-[9px] px-1 py-0.5 rounded font-medium">
-                                            Kapak
-                                          </div>
+                                          <div className="absolute top-1 left-1 bg-black/60 text-white text-[9px] px-1 py-0.5 rounded font-medium">Kapak</div>
                                         )}
                                         <button
                                           onClick={() => setEditPhotos(prev => prev.filter((_, idx) => idx !== i))}
@@ -362,26 +461,22 @@ export default function ProfilPage() {
                                         </button>
                                       </div>
                                     ))}
-
                                     {editPhotos.length < MAX_PHOTOS && (
-                                      <>
-                                        {Array.from({ length: MAX_PHOTOS - editPhotos.length }).map((_, i) => (
-                                          <div
-                                            key={`empty-${i}`}
-                                            onClick={() => photoInputRef.current?.click()}
-                                            className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors"
-                                          >
-                                            {i === 0 ? (
-                                              uploadingPhoto
-                                                ? <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                                : <Upload className="h-4 w-4 text-gray-300" />
-                                            ) : null}
-                                          </div>
-                                        ))}
-                                      </>
+                                      Array.from({ length: MAX_PHOTOS - editPhotos.length }).map((_, i) => (
+                                        <div
+                                          key={`empty-${i}`}
+                                          onClick={() => photoInputRef.current?.click()}
+                                          className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors"
+                                        >
+                                          {i === 0 ? (
+                                            uploadingPhoto
+                                              ? <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                              : <Upload className="h-4 w-4 text-gray-300" />
+                                          ) : null}
+                                        </div>
+                                      ))
                                     )}
                                   </div>
-
                                   {editPhotos.length < MAX_PHOTOS && (
                                     <button
                                       onClick={() => photoInputRef.current?.click()}
@@ -392,7 +487,6 @@ export default function ProfilPage() {
                                       {uploadingPhoto ? 'Yükleniyor...' : 'Fotoğraf Ekle'}
                                     </button>
                                   )}
-
                                   <input
                                     ref={photoInputRef}
                                     type="file"
@@ -414,6 +508,106 @@ export default function ProfilPage() {
                             )}
                           </SheetContent>
                         </Sheet>
+
+                        {/* Satıldı olarak işaretle */}
+                        {listing.status === 'active' && (
+                          <Sheet open={soldModalId === listing.id} onOpenChange={open => { if (!open) setSoldModalId(null) }}>
+                            <SheetTrigger render={
+                              <button
+                                onClick={() => openSoldModal(listing)}
+                                title="Satıldı Olarak İşaretle"
+                                className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-emerald-500 transition-colors"
+                              >
+                                <Banknote className="h-4 w-4" />
+                              </button>
+                            } />
+                            <SheetContent side="right" className="w-full sm:w-96 p-6 overflow-y-auto">
+                              <p className="font-semibold text-gray-900 mb-1">Satıldı Olarak İşaretle</p>
+                              <p className="text-sm text-gray-500 mb-5">
+                                {soldModalListing?.custom_title ?? (soldModalListing as (Listing & { product?: { name: string } }) | undefined)?.product?.name ?? ''}
+                              </p>
+
+                              {soldBuyersLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                  <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                </div>
+                              ) : (
+                                <div className="space-y-5">
+                                  {soldBuyers.length > 0 && !soldOutside && (
+                                    <div>
+                                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                                        Bu ilanla ilgili mesajlaşılan kullanıcılar
+                                      </p>
+                                      <div className="space-y-2">
+                                        {soldBuyers.map(buyer => (
+                                          <button
+                                            key={buyer.id}
+                                            onClick={() => setSelectedBuyerId(buyer.id)}
+                                            className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${
+                                              selectedBuyerId === buyer.id
+                                                ? 'border-emerald-500 bg-emerald-50'
+                                                : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                            }`}
+                                          >
+                                            <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-gray-500">
+                                              {(buyer.full_name ?? buyer.username).charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-sm font-medium text-gray-900">{buyer.full_name ?? buyer.username}</p>
+                                              <p className="text-xs text-gray-500">@{buyer.username}</p>
+                                            </div>
+                                            {selectedBuyerId === buyer.id && (
+                                              <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                                                <X className="h-3 w-3 text-white rotate-45" />
+                                              </div>
+                                            )}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {soldBuyers.length === 0 && !soldOutside && (
+                                    <div className="text-center py-4 text-sm text-gray-400">
+                                      Bu ilanla ilgili mesajlaşan kullanıcı yok.
+                                    </div>
+                                  )}
+
+                                  {/* Poketopu dışında sat */}
+                                  <button
+                                    onClick={() => {
+                                      setSoldOutside(v => !v)
+                                      if (!soldOutside) setSelectedBuyerId(null)
+                                    }}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${
+                                      soldOutside
+                                        ? 'border-gray-400 bg-gray-50'
+                                        : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <div className={`h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                      soldOutside ? 'border-gray-600 bg-gray-600' : 'border-gray-300'
+                                    }`}>
+                                      {soldOutside && <X className="h-3 w-3 text-white rotate-45" />}
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-900">Poketopu dışında sattım</p>
+                                      <p className="text-xs text-gray-400">İlan kapanır ama satış istatistiklerine eklenmez</p>
+                                    </div>
+                                  </button>
+
+                                  <Button
+                                    onClick={confirmSold}
+                                    disabled={markingSold || (!soldOutside && !selectedBuyerId)}
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
+                                  >
+                                    {markingSold ? 'Kaydediliyor...' : 'Satıldı Olarak İşaretle'}
+                                  </Button>
+                                </div>
+                              )}
+                            </SheetContent>
+                          </Sheet>
+                        )}
 
                         {/* Yayından kaldır / Aktif et */}
                         <button
@@ -462,6 +656,68 @@ export default function ProfilPage() {
           </div>
         )}
       </div>
+
+      {/* Satın Aldıklarım */}
+      {purchases.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-3 p-5 border-b border-gray-50">
+            <ShoppingBag className="h-5 w-5 text-gray-400" />
+            <p className="font-semibold text-gray-900">Satın Aldıklarım</p>
+            <span className="ml-auto text-xs text-gray-400">{purchases.length} ürün</span>
+          </div>
+
+          <div className="divide-y divide-gray-50">
+            {purchases.map(item => {
+              const title = item.custom_title ?? (item as Listing & { product?: { name: string } }).product?.name ?? '—'
+              const img = item.photos?.[0] ?? (item as Listing & { product?: { image_url: string | null } }).product?.image_url
+
+              return (
+                <div key={item.id}>
+                  <div className="flex items-center gap-3 p-4">
+                    <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+                      {img && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={img} alt={title} className="h-full w-full object-contain" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">
+                        {item.price.toLocaleString('tr-TR')} ₺
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setDisclaimId(item.id)}
+                      title="Ben satın almadım"
+                      className="p-2 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-red-400 transition-colors"
+                    >
+                      <AlertCircle className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {disclaimId === item.id && (
+                    <div className="mx-4 mb-3 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3">
+                      <p className="text-sm text-amber-800 flex-1">Bu ürünü satın almadın mı?</p>
+                      <button
+                        onClick={() => disclaimPurchase(item.id)}
+                        className="text-xs font-semibold text-amber-700 hover:text-amber-800 px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 transition-colors whitespace-nowrap"
+                      >
+                        Evet, Satın Almadım
+                      </button>
+                      <button
+                        onClick={() => setDisclaimId(null)}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        İptal
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

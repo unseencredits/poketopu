@@ -73,6 +73,8 @@ export interface Listing {
   photos: string[]
   notes: string | null
   status: ListingStatus
+  sold_to_user_id: string | null
+  sold_outside: boolean
   views: number
   created_at: string
   updated_at: string
