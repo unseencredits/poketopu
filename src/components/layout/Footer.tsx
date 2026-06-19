@@ -16,9 +16,9 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-gray-800 mb-3">Keşfet</h3>
             <ul className="space-y-2 text-sm text-gray-500">
               <li><Link href="/kartlar" className="hover:text-red-500">Kartlar</Link></li>
-              <li><Link href="/sealed" className="hover:text-red-500">Sealed Ürünler</Link></li>
-              <li><Link href="/derecelendirilmis" className="hover:text-red-500">Derecelendirilmiş</Link></li>
-              <li><Link href="/magazalar" className="hover:text-red-500">Mağazalar</Link></li>
+              <li><Link href="/ara?kategori=sealed" className="hover:text-red-500">Sealed Ürünler</Link></li>
+              <li><Link href="/ara?kategori=graded" className="hover:text-red-500">Derecelendirilmiş</Link></li>
+              <li><Link href="/ara" className="hover:text-red-500">Tüm İlanlar</Link></li>
             </ul>
           </div>
 

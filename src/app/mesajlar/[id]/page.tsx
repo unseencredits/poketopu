@@ -32,11 +32,17 @@ export default function ConversationPage() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const messagesRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollToBottom = useCallback((smooth = false) => {
+    const el = messagesRef.current
+    if (!el) return
+    if (smooth) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    } else {
+      el.scrollTop = el.scrollHeight
+    }
   }, [])
 
   useEffect(() => {
@@ -78,12 +84,13 @@ export default function ConversationPage() {
       setMessages((msgs as Msg[]) ?? [])
       setLoading(false)
 
-      // Okunmamışları okundu yap
+      // Okunmamışları okundu yap ve Header'ı bilgilendir
       await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', convId)
         .neq('sender_id', user.id)
+      window.dispatchEvent(new Event('unread-refresh'))
 
       // Gerçek zamanlı mesaj dinle
       channel = supabase
@@ -101,6 +108,7 @@ export default function ConversationPage() {
           // Gelen mesajı okundu yap
           if (payload.new.sender_id !== user.id) {
             supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id)
+            window.dispatchEvent(new Event('unread-refresh'))
           }
         })
         .subscribe()
@@ -179,7 +187,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Mesajlar */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+      <div ref={messagesRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
         {messages.length === 0 && (
           <div className="text-center pt-12">
             <p className="text-sm text-gray-400">Henüz mesaj yok. İlk mesajı sen gönder.</p>
@@ -214,7 +222,6 @@ export default function ConversationPage() {
             </div>
           )
         })}
-        <div ref={bottomRef} />
       </div>
 
       {/* Mesaj gönder */}

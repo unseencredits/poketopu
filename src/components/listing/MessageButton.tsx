@@ -8,10 +8,11 @@ import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   listingId: string
-  sellerId: string   // profiles.id of the seller (store.user_id)
+  sellerId: string
+  compact?: boolean
 }
 
-export default function MessageButton({ listingId, sellerId }: Props) {
+export default function MessageButton({ listingId, sellerId, compact = false }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -57,6 +58,20 @@ export default function MessageButton({ listingId, sellerId }: Props) {
       console.error(error)
       setLoading(false)
     }
+  }
+
+  if (compact) {
+    return (
+      <Button
+        onClick={handleClick}
+        disabled={loading}
+        size="sm"
+        className="bg-primary hover:bg-primary/90 text-white rounded-lg gap-1.5 text-xs px-3"
+      >
+        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+        Mesaj
+      </Button>
+    )
   }
 
   return (

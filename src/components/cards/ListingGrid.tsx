@@ -29,8 +29,9 @@ export default function ListingGrid({ listings, emptyMessage = 'Sonuç bulunamad
         const photo = listing.photos?.[0] ?? listing.product?.image_url ?? null
         const setName = listing.product?.set_name
 
+        const href = listing.product_id ? `/kart/${listing.product_id}` : `/ilan/${listing.id}`
         return (
-          <Link href={`/ilan/${listing.id}`} key={listing.id} className="listing-card group block">
+          <Link href={href} key={listing.id} className="listing-card group block">
             <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden h-full">
               <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">
                 {photo ? (

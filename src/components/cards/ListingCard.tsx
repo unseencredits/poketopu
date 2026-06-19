@@ -13,8 +13,10 @@ export default function ListingCard({ listing }: Props) {
   const photo = listing.photos?.[0] ?? listing.product?.image_url ?? null
   const setName = listing.product?.set_name
 
+  const href = listing.product_id ? `/kart/${listing.product_id}` : `/ilan/${listing.id}`
+
   return (
-    <Link href={`/ilan/${listing.id}`} className="listing-card group block">
+    <Link href={href} className="listing-card group block">
       <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
         {/* Fotoğraf */}
         <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">

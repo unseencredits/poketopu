@@ -20,7 +20,18 @@ async function getListings(sp: Record<string, string>): Promise<{ listings: List
     .eq('status', 'active')
 
   if (sp.q) {
-    query = query.or(`custom_title.ilike.%${sp.q}%,product.name.ilike.%${sp.q}%`)
+    // Joined tabloda ilike çalışmadığı için iki adımlı: önce product ID'lerini bul
+    const { data: matchedProds } = await supabase
+      .from('products')
+      .select('id')
+      .ilike('name', `%${sp.q}%`)
+    const matchedProdIds = (matchedProds ?? []).map((p: { id: string }) => p.id)
+
+    if (matchedProdIds.length > 0) {
+      query = query.or(`custom_title.ilike.%${sp.q}%,product_id.in.(${matchedProdIds.join(',')})`)
+    } else {
+      query = query.ilike('custom_title', `%${sp.q}%`)
+    }
   }
   if (sp.kategori) query = query.eq('category', sp.kategori as Category)
   if (sp.kondisyon) query = query.eq('condition', sp.kondisyon as Condition)
