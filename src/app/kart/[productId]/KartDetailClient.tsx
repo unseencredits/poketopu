@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import ConditionBadge from '@/components/shared/ConditionBadge'
 import MessageButton from '@/components/listing/MessageButton'
 import type { Condition } from '@/types'
@@ -50,6 +51,18 @@ export default function KartDetailClient({ product, listings }: Props) {
     }
   }
 
+  function prevPhoto() {
+    if (!sellerPhotos?.length) return
+    const currentIdx = sellerPhotos.indexOf(activePhoto ?? sellerPhotos[0])
+    setActivePhoto(sellerPhotos[(currentIdx - 1 + sellerPhotos.length) % sellerPhotos.length])
+  }
+
+  function nextPhoto() {
+    if (!sellerPhotos?.length) return
+    const currentIdx = sellerPhotos.indexOf(activePhoto ?? sellerPhotos[0])
+    setActivePhoto(sellerPhotos[(currentIdx + 1) % sellerPhotos.length])
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
@@ -58,15 +71,46 @@ export default function KartDetailClient({ product, listings }: Props) {
 
         {/* Ana görsel */}
         <div
-          className="relative w-full max-w-sm bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 mx-auto lg:mx-0"
+          className="relative w-full max-w-sm mx-auto lg:mx-0"
           style={{ aspectRatio: '5/7' }}
         >
-          {mainPhoto ? (
-            <Image src={mainPhoto} alt={product.name} fill className="object-contain p-4" priority />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-24 h-32 rounded-xl bg-gray-200" />
-            </div>
+          <div className="relative w-full h-full bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
+            {mainPhoto ? (
+              <Image src={mainPhoto} alt={product.name} fill className="object-contain p-4" priority />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-24 h-32 rounded-xl bg-gray-200" />
+              </div>
+            )}
+          </div>
+
+          {sellerPhotos && sellerPhotos.length > 1 && (
+            <>
+              <button
+                onClick={prevPhoto}
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/90 border border-gray-100 shadow-sm flex items-center justify-center hover:bg-white transition-colors z-10"
+              >
+                <ChevronLeft className="h-4 w-4 text-gray-600" />
+              </button>
+              <button
+                onClick={nextPhoto}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/90 border border-gray-100 shadow-sm flex items-center justify-center hover:bg-white transition-colors z-10"
+              >
+                <ChevronRight className="h-4 w-4 text-gray-600" />
+              </button>
+
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                {sellerPhotos.map((url, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActivePhoto(url)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      (activePhoto ?? sellerPhotos[0]) === url ? 'w-4 bg-primary' : 'w-1.5 bg-white/70'
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
 

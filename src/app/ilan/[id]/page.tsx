@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronLeft, Store, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ConditionBadge from '@/components/shared/ConditionBadge'
 import MessageButton from '@/components/listing/MessageButton'
+import IlanPhotoGallery from './IlanPhotoGallery'
 import type { Listing } from '@/types'
 
 export default async function IlanPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,29 +33,11 @@ export default async function IlanPage({ params }: { params: Promise<{ id: strin
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Sol: Fotoğraflar */}
         <div className="flex flex-col items-center">
-          <div className="relative w-full max-w-xs bg-gray-50 rounded-2xl overflow-hidden border border-gray-100" style={{ aspectRatio: '5/7' }}>
-            {photos[0] ? (
-              <Image
-                src={photos[0]}
-                alt={title}
-                fill
-                className="object-contain p-4"
-                priority
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-200">
-                <Store className="h-16 w-16" />
-              </div>
-            )}
-          </div>
-
-          {photos.length > 1 && (
-            <div className="flex gap-2 mt-3">
-              {photos.map((url, i) => (
-                <div key={i} className="relative h-16 w-12 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
-                  <Image src={url} alt={`${i + 1}`} fill className="object-contain p-1" />
-                </div>
-              ))}
+          {photos.length > 0 ? (
+            <IlanPhotoGallery photos={photos} alt={title} />
+          ) : (
+            <div className="relative w-full max-w-xs bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-center" style={{ aspectRatio: '5/7' }}>
+              <Store className="h-16 w-16 text-gray-200" />
             </div>
           )}
         </div>
