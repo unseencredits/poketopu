@@ -39,7 +39,7 @@ export default async function KartPage({ params }: PageProps) {
     .eq('status', 'active')
     .order('price', { ascending: true })
 
-  const listings = (rawListings ?? []) as SellerListing[]
+  const listings = (rawListings ?? []) as unknown as SellerListing[]
   const image = product.image_url_hires ?? product.image_url
 
   return (
