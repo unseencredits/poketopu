@@ -51,10 +51,12 @@ export default function ConversationPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    let channel: ReturnType<typeof supabase.channel>
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let mounted = true
 
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
+      if (!mounted) return
       if (!user) { router.push('/giris'); return }
       setUserId(user.id)
 
@@ -71,6 +73,7 @@ export default function ConversationPage() {
         .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
         .single()
 
+      if (!mounted) return
       if (!convData) { router.push('/mesajlar'); return }
       setConv(convData as unknown as ConvInfo)
 
@@ -81,6 +84,7 @@ export default function ConversationPage() {
         .eq('conversation_id', convId)
         .order('created_at', { ascending: true })
 
+      if (!mounted) return
       setMessages((msgs as Msg[]) ?? [])
       setLoading(false)
 
@@ -90,17 +94,20 @@ export default function ConversationPage() {
         .update({ is_read: true })
         .eq('conversation_id', convId)
         .neq('sender_id', user.id)
-      window.dispatchEvent(new Event('unread-refresh'))
+      if (mounted) window.dispatchEvent(new Event('unread-refresh'))
+
+      if (!mounted) return
 
       // Gerçek zamanlı mesaj dinle
       channel = supabase
-        .channel(`conv-${convId}`)
+        .channel(`conv-${convId}-${Date.now()}`)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
           filter: `conversation_id=eq.${convId}`,
         }, (payload) => {
+          if (!mounted) return
           setMessages(prev => {
             if (prev.find(m => m.id === payload.new.id)) return prev
             return [...prev, payload.new as Msg]
@@ -115,7 +122,10 @@ export default function ConversationPage() {
     }
 
     init()
-    return () => { channel?.unsubscribe() }
+    return () => {
+      mounted = false
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [convId, router])
 
   async function sendMessage() {
