@@ -55,11 +55,16 @@ export default async function IlanPage({ params }: { params: Promise<{ id: strin
             )}
           </h1>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-3xl font-bold text-gray-900">
               {listing.price.toLocaleString('tr-TR')} ₺
             </span>
             {listing.condition && <ConditionBadge condition={listing.condition} />}
+            {listing.quantity > 1 && (
+              <span className="text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-3 py-1 font-medium">
+                Stokta {listing.quantity} adet
+              </span>
+            )}
           </div>
 
           {listing.notes && (

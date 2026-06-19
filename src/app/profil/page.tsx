@@ -52,6 +52,7 @@ export default function ProfilPage() {
   const [soldBuyersLoading, setSoldBuyersLoading] = useState(false)
   const [soldOutside, setSoldOutside] = useState(false)
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null)
+  const [soldQty, setSoldQty] = useState(1)
   const [markingSold, setMarkingSold] = useState(false)
 
   // Satın almadım
@@ -202,6 +203,7 @@ export default function ProfilPage() {
     setSoldModalId(listing.id)
     setSoldOutside(false)
     setSelectedBuyerId(null)
+    setSoldQty(1)
     setSoldBuyersLoading(true)
 
     const supabase = createClient()
@@ -228,26 +230,43 @@ export default function ProfilPage() {
   async function confirmSold() {
     if (!soldModalId) return
     if (!soldOutside && !selectedBuyerId) return
+    const listing = listings.find(l => l.id === soldModalId)
+    if (!listing) return
     setMarkingSold(true)
     const supabase = createClient()
 
-    const update: Record<string, unknown> = { status: 'sold' }
-    if (soldOutside) {
-      update.sold_outside = true
-      update.sold_to_user_id = null
-    } else {
-      update.sold_to_user_id = selectedBuyerId
-      update.sold_outside = false
-    }
+    const remaining = listing.quantity - soldQty
 
-    const { error } = await supabase.from('listings').update(update).eq('id', soldModalId)
-    if (!error) {
-      setListings(prev => prev.map(l =>
-        l.id === soldModalId
-          ? { ...l, status: 'sold' as ListingStatus, sold_outside: soldOutside, sold_to_user_id: selectedBuyerId }
-          : l
-      ))
-      setSoldModalId(null)
+    if (remaining > 0) {
+      // Kısmi satış — stoku azalt, ilan yayında kal
+      const { error } = await supabase.from('listings')
+        .update({ quantity: remaining })
+        .eq('id', soldModalId)
+      if (!error) {
+        setListings(prev => prev.map(l =>
+          l.id === soldModalId ? { ...l, quantity: remaining } : l
+        ))
+        setSoldModalId(null)
+      }
+    } else {
+      // Tüm stok tükendi — satıldı olarak işaretle
+      const update: Record<string, unknown> = { status: 'sold', quantity: 0 }
+      if (soldOutside) {
+        update.sold_outside = true
+        update.sold_to_user_id = null
+      } else {
+        update.sold_to_user_id = selectedBuyerId
+        update.sold_outside = false
+      }
+      const { error } = await supabase.from('listings').update(update).eq('id', soldModalId)
+      if (!error) {
+        setListings(prev => prev.map(l =>
+          l.id === soldModalId
+            ? { ...l, status: 'sold' as ListingStatus, quantity: 0, sold_outside: soldOutside, sold_to_user_id: selectedBuyerId }
+            : l
+        ))
+        setSoldModalId(null)
+      }
     }
     setMarkingSold(false)
   }
@@ -444,6 +463,11 @@ export default function ProfilPage() {
                              ? (listing.sold_outside ? 'Satıldı (Dışarıda)' : 'Satıldı')
                              : listing.status === 'reserved' ? 'Yayından Kaldırıldı' : '—'}
                         </span>
+                        {listing.quantity > 1 && (
+                          <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full font-medium">
+                            {listing.quantity} adet
+                          </span>
+                        )}
                         <span className="text-sm font-bold text-gray-900">
                           {listing.price.toLocaleString('tr-TR')} ₺
                         </span>
@@ -539,6 +563,30 @@ export default function ProfilPage() {
                                 </div>
                               ) : (
                                 <div className="space-y-5">
+                                  {/* Adet seçimi — sadece stokta 1'den fazla varsa */}
+                                  {soldModalListing && soldModalListing.quantity > 1 && (
+                                    <div>
+                                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Kaç adet sattın?</p>
+                                      <div className="flex items-center gap-3">
+                                        <button
+                                          onClick={() => setSoldQty(q => Math.max(1, q - 1))}
+                                          className="h-8 w-8 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-medium"
+                                        >−</button>
+                                        <span className="text-lg font-bold text-gray-900 min-w-[2rem] text-center">{soldQty}</span>
+                                        <button
+                                          onClick={() => setSoldQty(q => Math.min(soldModalListing.quantity, q + 1))}
+                                          className="h-8 w-8 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-medium"
+                                        >+</button>
+                                        <span className="text-sm text-gray-400">/ {soldModalListing.quantity} adet</span>
+                                      </div>
+                                      {soldQty < soldModalListing.quantity && (
+                                        <p className="text-xs text-blue-600 mt-2">
+                                          {soldModalListing.quantity - soldQty} adet stokta kalacak, ilan yayında kalmaya devam edecek.
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {soldBuyers.length > 0 && !soldOutside && (
                                     <div>
                                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
