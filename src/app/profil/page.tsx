@@ -14,6 +14,23 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import type { Profile, Store as StoreType, Listing, ListingStatus } from '@/types'
 
+interface Purchase {
+  id: string
+  listing_id: string
+  quantity: number
+  sold_outside: boolean
+  disclaimed: boolean
+  created_at: string
+  listing: {
+    id: string
+    custom_title: string | null
+    price: number
+    photos: string[]
+    seller_id: string
+    product?: { name: string; image_url: string | null }
+  } | null
+}
+
 const MAX_PHOTOS = 4
 
 const RATING_TAGS = [
@@ -30,7 +47,7 @@ export default function ProfilPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [store, setStore] = useState<StoreType | null>(null)
   const [listings, setListings] = useState<Listing[]>([])
-  const [purchases, setPurchases] = useState<Listing[]>([])
+  const [purchases, setPurchases] = useState<Purchase[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
 
@@ -93,14 +110,18 @@ export default function ProfilPage() {
         setListings((myListings as unknown as Listing[]) ?? [])
       }
 
-      // Satın aldıklarım
-      const { data: myPurchases } = await supabase
-        .from('listings')
-        .select('*, product:products(id,name,set_name,image_url)')
-        .eq('sold_to_user_id', user.id)
-        .order('updated_at', { ascending: false })
+      // Satın aldıklarım — sales tablosundan
+      const { data: mySales } = await supabase
+        .from('sales')
+        .select(`
+          id, listing_id, quantity, sold_outside, disclaimed, created_at,
+          listing:listings(id, custom_title, price, photos, seller_id, product:products(name, image_url))
+        `)
+        .eq('buyer_id', user.id)
+        .eq('disclaimed', false)
+        .order('created_at', { ascending: false })
         .limit(20)
-      setPurchases((myPurchases as unknown as Listing[]) ?? [])
+      setPurchases((mySales as unknown as Purchase[]) ?? [])
 
       // Daha önce verilmiş puanlar
       const { data: myRatings } = await supabase
@@ -235,6 +256,15 @@ export default function ProfilPage() {
     setMarkingSold(true)
     const supabase = createClient()
 
+    // Her durumda satış kaydı oluştur (kısmi veya tam)
+    await supabase.from('sales').insert({
+      listing_id: soldModalId,
+      seller_store_id: listing.seller_id,
+      buyer_id: soldOutside ? null : selectedBuyerId,
+      quantity: soldQty,
+      sold_outside: soldOutside,
+    })
+
     const remaining = listing.quantity - soldQty
 
     if (remaining > 0) {
@@ -273,17 +303,15 @@ export default function ProfilPage() {
 
   // ─── Ben satın almadım ───────────────────────────────────────────────────────
 
-  async function disclaimPurchase(listingId: string) {
-    if (!userId) return
+  async function disclaimPurchase(saleId: string) {
     const supabase = createClient()
     const { error } = await supabase
-      .from('listings')
-      .update({ sold_to_user_id: null })
-      .eq('id', listingId)
-      .eq('sold_to_user_id', userId)
+      .from('sales')
+      .update({ disclaimed: true })
+      .eq('id', saleId)
 
     if (!error) {
-      setPurchases(prev => prev.filter(l => l.id !== listingId))
+      setPurchases(prev => prev.filter(s => s.id !== saleId))
       setDisclaimId(null)
     }
   }
@@ -306,8 +334,8 @@ export default function ProfilPage() {
 
   async function submitRating() {
     if (!ratingId || ratingStars === 0 || !userId) return
-    const purchase = purchases.find(p => p.id === ratingId)
-    if (!purchase) return
+    const purchase = purchases.find(p => p.listing_id === ratingId)
+    if (!purchase?.listing) return
 
     setSubmittingRating(true)
     const supabase = createClient()
@@ -315,7 +343,7 @@ export default function ProfilPage() {
     const { error } = await supabase.from('ratings').insert({
       listing_id: ratingId,
       reviewer_id: userId,
-      seller_store_id: purchase.seller_id,
+      seller_store_id: purchase.listing.seller_id,
       stars: ratingStars,
       tags: ratingTags,
       comment: ratingComment.trim() || null,
@@ -688,9 +716,9 @@ export default function ProfilPage() {
 
           <div className="divide-y divide-gray-50">
             {purchases.map(item => {
-              const title = item.custom_title ?? (item as Listing & { product?: { name: string } }).product?.name ?? '—'
-              const img = item.photos?.[0] ?? (item as Listing & { product?: { image_url: string | null } }).product?.image_url
-              const alreadyRated = ratedListingIds.has(item.id)
+              const title = item.listing?.custom_title ?? item.listing?.product?.name ?? '—'
+              const img = item.listing?.photos?.[0] ?? item.listing?.product?.image_url
+              const alreadyRated = ratedListingIds.has(item.listing_id)
 
               return (
                 <div key={item.id}>
@@ -701,7 +729,10 @@ export default function ProfilPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
                       <p className="text-sm font-bold text-gray-900 mt-0.5">
-                        {item.price.toLocaleString('tr-TR')} ₺
+                        {item.listing?.price.toLocaleString('tr-TR')} ₺
+                        {item.quantity > 1 && (
+                          <span className="text-xs text-gray-400 font-normal ml-1.5">× {item.quantity} adet</span>
+                        )}
                       </p>
                     </div>
 
@@ -713,9 +744,9 @@ export default function ProfilPage() {
                           Puanlandı
                         </span>
                       ) : (
-                        <Sheet open={ratingId === item.id} onOpenChange={open => { if (!open) setRatingId(null) }}>
+                        <Sheet open={ratingId === item.listing_id} onOpenChange={open => { if (!open) setRatingId(null) }}>
                           <SheetTrigger render={
-                            <button onClick={() => openRating(item.id)}
+                            <button onClick={() => openRating(item.listing_id)}
                               className="flex items-center gap-1 text-xs font-medium text-yellow-600 hover:text-yellow-700 px-2 py-1.5 rounded-xl hover:bg-yellow-50 transition-colors border border-yellow-200">
                               <Star className="h-3.5 w-3.5" />
                               Puan Ver
