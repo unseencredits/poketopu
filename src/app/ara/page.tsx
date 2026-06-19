@@ -83,6 +83,9 @@ async function getListings(sp: Record<string, string>, excludeCards = false): Pr
   if (sp.kategori) query = query.eq('category', sp.kategori as Category)
   else if (excludeCards) query = query.neq('category', 'card')
   if (sp.kondisyon) query = query.eq('condition', sp.kondisyon as Condition)
+  if (sp.derecelendiren) query = query.eq('grader', sp.derecelendiren)
+  if (sp.puan_min) query = query.gte('grade', Number(sp.puan_min))
+  if (sp.puan_max) query = query.lte('grade', Number(sp.puan_max))
   if (sp.min) query = query.gte('price', Number(sp.min))
   if (sp.max) query = query.lte('price', Number(sp.max))
 

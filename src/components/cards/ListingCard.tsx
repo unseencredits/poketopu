@@ -34,11 +34,15 @@ export default function ListingCard({ listing }: Props) {
             </div>
           )}
 
-          {listing.condition && (
+          {(listing.grader && listing.grade != null) ? (
+            <div className="absolute top-2 left-2">
+              <ConditionBadge grader={listing.grader} grade={listing.grade} showLabel={false} size="sm" />
+            </div>
+          ) : listing.condition ? (
             <div className="absolute top-2 left-2">
               <ConditionBadge condition={listing.condition} showLabel={false} size="sm" />
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Bilgi */}
@@ -52,9 +56,11 @@ export default function ListingCard({ listing }: Props) {
             <p className="text-base font-bold text-gray-900">
               {listing.price.toLocaleString('tr-TR')} ₺
             </p>
-            {listing.condition && (
+            {(listing.grader && listing.grade != null) ? (
+              <ConditionBadge grader={listing.grader} grade={listing.grade} size="sm" />
+            ) : listing.condition ? (
               <ConditionBadge condition={listing.condition} showLabel={true} size="sm" />
-            )}
+            ) : null}
           </div>
 
           {listing.store && (

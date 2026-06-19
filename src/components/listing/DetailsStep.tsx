@@ -6,24 +6,42 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { CONDITIONS, type Condition, type Category } from '@/types'
 
+const GRADERS = ['PSA', 'BGS', 'CGC', 'SGC', 'GMA', 'ACE']
+const GRADES = [10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5, 6, 5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1]
+
 interface Props {
   category: Category
-  onNext: (data: { condition?: Condition; price: number; quantity: number; notes: string }) => void
+  onNext: (data: {
+    condition?: Condition
+    grader?: string
+    grade?: number
+    price: number
+    quantity: number
+    notes: string
+  }) => void
 }
 
 export default function DetailsStep({ category, onNext }: Props) {
-  const needsCondition = category === 'card' || category === 'graded'
-  const [condition, setCondition] = useState<Condition | null>(needsCondition ? null : null)
+  const isGraded = category === 'graded'
+  const needsCondition = category === 'card'
+
+  const [condition, setCondition] = useState<Condition | null>(null)
+  const [grader, setGrader] = useState<string | null>(null)
+  const [grade, setGrade] = useState<number | null>(null)
   const [price, setPrice] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [notes, setNotes] = useState('')
 
-  const canSubmit = price && Number(price) > 0 && (!needsCondition || condition)
+  const canSubmit = price && Number(price) > 0
+    && (!needsCondition || condition)
+    && (!isGraded || (grader && grade != null))
 
   function handleSubmit() {
     if (!canSubmit) return
     onNext({
       condition: condition ?? undefined,
+      grader: grader ?? undefined,
+      grade: grade ?? undefined,
       price: Number(price),
       quantity: Number(quantity) || 1,
       notes: notes.trim(),
@@ -36,7 +54,8 @@ export default function DetailsStep({ category, onNext }: Props) {
       <p className="text-sm text-gray-500 mb-6">İlan bilgilerini doldur</p>
 
       <div className="space-y-5">
-        {/* Koşul seçimi */}
+
+        {/* Kart koşulu (sadece card kategorisinde) */}
         {needsCondition && (
           <div className="space-y-2">
             <Label>Kart Koşulu <span className="text-red-500">*</span></Label>
@@ -62,6 +81,49 @@ export default function DetailsStep({ category, onNext }: Props) {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Graded — kuruluş + puan */}
+        {isGraded && (
+          <>
+            <div className="space-y-2">
+              <Label>Derecelendiren Kuruluş <span className="text-red-500">*</span></Label>
+              <div className="grid grid-cols-3 gap-2">
+                {GRADERS.map(g => (
+                  <button
+                    key={g}
+                    onClick={() => setGrader(g)}
+                    className={`py-2.5 rounded-xl border text-sm font-bold transition-all ${
+                      grader === g
+                        ? 'border-violet-500 bg-violet-50 text-violet-700 ring-2 ring-violet-200'
+                        : 'border-gray-100 bg-white text-gray-700 hover:border-gray-200'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Grade Puanı <span className="text-red-500">*</span></Label>
+              <div className="flex flex-wrap gap-1.5">
+                {GRADES.map(g => (
+                  <button
+                    key={g}
+                    onClick={() => setGrade(g)}
+                    className={`w-12 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                      grade === g
+                        ? 'border-violet-500 bg-violet-500 text-white'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-violet-300'
+                    }`}
+                  >
+                    {g % 1 === 0 ? g.toFixed(0) : g}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         {/* Fiyat */}
@@ -100,7 +162,9 @@ export default function DetailsStep({ category, onNext }: Props) {
           <Textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            placeholder="Kart hakkında ekstra bilgi, kusurlar, özel durumlar..."
+            placeholder={isGraded
+              ? 'Sertifika numarası, kart adı, özel bilgiler...'
+              : 'Kart hakkında ekstra bilgi, kusurlar, özel durumlar...'}
             rows={3}
           />
         </div>

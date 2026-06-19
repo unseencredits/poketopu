@@ -59,7 +59,11 @@ export default async function IlanPage({ params }: { params: Promise<{ id: strin
             <span className="text-3xl font-bold text-gray-900">
               {listing.price.toLocaleString('tr-TR')} ₺
             </span>
-            {listing.condition && <ConditionBadge condition={listing.condition} />}
+            {(listing.grader && listing.grade != null) ? (
+              <ConditionBadge grader={listing.grader} grade={listing.grade} />
+            ) : listing.condition ? (
+              <ConditionBadge condition={listing.condition} />
+            ) : null}
             {listing.quantity > 1 && (
               <span className="text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-3 py-1 font-medium">
                 Stokta {listing.quantity} adet

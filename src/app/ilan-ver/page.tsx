@@ -28,6 +28,8 @@ interface ListingData {
   customTitle?: string
   customDescription?: string
   condition?: Condition
+  grader?: string
+  grade?: number
   price?: number
   quantity?: number
   notes?: string
@@ -119,6 +121,8 @@ export default function IlanVerPage() {
         price: data.price!,
         quantity: data.quantity ?? 1,
         notes: data.notes ?? null,
+        grader: data.grader ?? null,
+        grade: data.grade ?? null,
         photos: photoUrls,
       })
       .select('id')
