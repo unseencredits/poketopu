@@ -1,13 +1,21 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getSets } from '@/lib/pokemon-tcg'
-import ListingGrid from '@/components/cards/ListingGrid'
 import MobileFilter from './MobileFilter'
-import type { Listing } from '@/types'
 import type { TCGSet } from '@/lib/pokemon-tcg'
 
 interface Props {
   searchParams: Promise<Record<string, string>>
+}
+
+interface ProductCard {
+  id: string
+  name: string
+  set_name: string | null
+  number: string | null
+  image_url: string | null
+  count: number
 }
 
 const SERIES_ORDER = [
@@ -26,43 +34,49 @@ const SERIES_ORDER = [
   'Base',
 ]
 
-async function getListings(seri: string | null, setId: string | null): Promise<{ listings: Listing[]; total: number }> {
+async function getProducts(seri: string | null, setId: string | null): Promise<{ products: ProductCard[]; total: number }> {
   const supabase = await createClient()
 
   let productIds: string[] | null = null
 
   if (setId) {
-    // Belirli bir set seçili
-    const { data: prods } = await supabase
-      .from('products')
-      .select('id')
-      .eq('set_id', setId)
+    const { data: prods } = await supabase.from('products').select('id').eq('set_id', setId)
     productIds = (prods ?? []).map((p: { id: string }) => p.id)
-    if (!productIds.length) return { listings: [], total: 0 }
+    if (!productIds.length) return { products: [], total: 0 }
   } else if (seri) {
-    // Sadece seri seçili
-    const { data: prods } = await supabase
-      .from('products')
-      .select('id')
-      .eq('series', seri)
+    const { data: prods } = await supabase.from('products').select('id').eq('series', seri)
     productIds = (prods ?? []).map((p: { id: string }) => p.id)
-    if (!productIds.length) return { listings: [], total: 0 }
+    if (!productIds.length) return { products: [], total: 0 }
   }
 
   let query = supabase
     .from('listings')
-    .select('*, product:products(id,name,set_name,set_id,series,number,image_url), store:stores(id,name,slug)', { count: 'exact' })
+    .select('product_id, product:products(id,name,set_name,number,image_url)')
     .eq('status', 'active')
     .eq('category', 'card')
-    .order('created_at', { ascending: false })
-    .limit(48)
+    .not('product_id', 'is', null)
 
   if (productIds) {
     query = query.in('product_id', productIds)
   }
 
-  const { data, count } = await query
-  return { listings: (data as Listing[]) ?? [], total: count ?? 0 }
+  const { data } = await query
+
+  // Ürün bazında grupla ve say
+  const map = new Map<string, ProductCard>()
+  for (const l of data ?? []) {
+    if (!l.product_id || !l.product) continue
+    const p = l.product as { id: string; name: string; set_name: string | null; number: string | null; image_url: string | null }
+    const existing = map.get(l.product_id)
+    if (existing) {
+      existing.count++
+    } else {
+      map.set(l.product_id, { id: p.id, name: p.name, set_name: p.set_name, number: p.number, image_url: p.image_url, count: 1 })
+    }
+  }
+
+  const products = Array.from(map.values()).sort((a, b) => b.count - a.count)
+  return { products, total: products.length }
 }
 
 export default async function KartlarPage({ searchParams }: Props) {
@@ -85,7 +99,7 @@ export default async function KartlarPage({ searchParams }: Props) {
   // Seçilen set'in adını bul
   const selectedSet = selectedSetId ? allSets.find(s => s.id === selectedSetId) : null
 
-  const { listings, total } = await getListings(selectedSeri, selectedSetId)
+  const { products, total } = await getProducts(selectedSeri, selectedSetId)
 
   // Sayfa başlığı
   const pageTitle = selectedSet
@@ -178,7 +192,7 @@ export default async function KartlarPage({ searchParams }: Props) {
                 <p className="text-xs text-gray-400 mb-1">{selectedSeri} · {selectedSet.name}</p>
               )}
               <h1 className="text-xl font-bold text-gray-900">{pageTitle}</h1>
-              <p className="text-sm text-gray-400 mt-0.5">{total.toLocaleString('tr-TR')} ilan</p>
+              <p className="text-sm text-gray-400 mt-0.5">{total.toLocaleString('tr-TR')} farklı kart</p>
             </div>
 
             {/* Mobil: bottom sheet filtre */}
@@ -192,24 +206,56 @@ export default async function KartlarPage({ searchParams }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-            <ListingGrid
-              listings={listings}
-              emptyMessage={
-                selectedSet
+          {products.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center">
+              <p className="text-sm text-gray-400 mb-3">
+                {selectedSet
                   ? `${selectedSet.name} setinde henüz ilan yok.`
                   : selectedSeri
                     ? `${selectedSeri} serisinde henüz ilan yok.`
-                    : 'Henüz kart ilanı yok.'
-              }
-            />
-          </div>
-
-          {listings.length === 0 && (
-            <div className="text-center mt-4">
+                    : 'Henüz kart ilanı yok.'}
+              </p>
               <Link href="/ilan-ver" className="text-sm text-primary hover:underline">
                 İlk ilanı sen ver →
               </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+              {products.map(p => (
+                <Link key={p.id} href={`/kart/${p.id}`} className="group block">
+                  <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden hover:border-gray-200 hover:shadow-sm transition-all">
+                    <div className="relative bg-gray-50 flex items-center justify-center" style={{ aspectRatio: '5/7' }}>
+                      {p.image_url ? (
+                        <Image
+                          src={p.image_url}
+                          alt={p.name}
+                          fill
+                          className="object-contain p-3"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        />
+                      ) : (
+                        <div className="w-16 h-22 rounded-lg bg-gray-200" />
+                      )}
+                      {p.count > 1 && (
+                        <span className="absolute top-2 right-2 bg-primary text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                          {p.count} ilan
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary transition-colors">
+                        {p.name}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                        {p.set_name}{p.number ? ` · #${p.number}` : ''}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1.5 font-medium">
+                        {p.count === 1 ? '1 ilan' : `${p.count} ilan`}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </div>
