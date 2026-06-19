@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Search, MessageCircle, User, Plus } from 'lucide-react'
+import { Search, MessageCircle, User, Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useState, useEffect } from 'react'
@@ -12,6 +12,7 @@ export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
   const [query, setQuery] = useState('')
+  const [searching, setSearching] = useState(false)
   const [unread, setUnread] = useState(0)
   const [userId, setUserId] = useState<string | null>(null)
 
@@ -73,10 +74,79 @@ export default function Header() {
     return () => window.removeEventListener('unread-refresh', refresh)
   }, [])
 
-  function handleSearch(e: React.FormEvent) {
+  async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
-    if (query.trim()) {
-      router.push(`/ara?q=${encodeURIComponent(query.trim())}`)
+    const q = query.trim()
+    if (!q) return
+
+    setSearching(true)
+    try {
+      const supabase = createClient()
+
+      // @kullaniciadi → satıcı mağazası
+      if (q.startsWith('@')) {
+        const username = q.slice(1).trim()
+        if (username) {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('username', username)
+            .maybeSingle()
+
+          if (prof) {
+            const { data: st } = await supabase
+              .from('stores')
+              .select('slug')
+              .eq('user_id', prof.id)
+              .maybeSingle()
+            if (st) {
+              router.push(`/magaza/${st.slug}`)
+              setQuery('')
+              return
+            }
+          }
+        }
+        // Satıcı bulunamadı — normal aramaya düş
+        router.push(`/ara?q=${encodeURIComponent(q)}`)
+        return
+      }
+
+      // Set adı veya seri adı araması
+      const [{ data: setRows }, { data: seriesRows }] = await Promise.all([
+        supabase
+          .from('products')
+          .select('set_id, set_name')
+          .ilike('set_name', `%${q}%`)
+          .limit(5),
+        supabase
+          .from('products')
+          .select('series')
+          .ilike('series', `%${q}%`)
+          .not('series', 'is', null)
+          .limit(1),
+      ])
+
+      // Tam eşleşmeye öncelik ver, yoksa ilk kısmi eşleşme
+      const exactSet = setRows?.find(s => s.set_name?.toLowerCase() === q.toLowerCase())
+      const setMatch = exactSet ?? setRows?.[0]
+
+      if (setMatch?.set_id) {
+        router.push(`/kartlar?set_id=${encodeURIComponent(setMatch.set_id)}`)
+        setQuery('')
+        return
+      }
+
+      if (seriesRows?.[0]?.series) {
+        router.push(`/kartlar?seri=${encodeURIComponent(seriesRows[0].series)}`)
+        setQuery('')
+        return
+      }
+
+      // Normal kart / başlık araması
+      router.push(`/ara?q=${encodeURIComponent(q)}`)
+      setQuery('')
+    } finally {
+      setSearching(false)
     }
   }
 
@@ -94,12 +164,16 @@ export default function Header() {
           {/* Arama */}
           <form onSubmit={handleSearch} className="flex-1 max-w-2xl hidden sm:flex">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              {searching
+                ? <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+                : <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              }
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Kart adı, set, satıcı ara..."
+                placeholder="Kart adı, set adı veya @satıcı ara..."
                 className="pl-10 bg-gray-50 border-gray-200 focus:bg-white h-10"
+                disabled={searching}
               />
             </div>
           </form>
@@ -135,12 +209,16 @@ export default function Header() {
         {/* Mobil arama */}
         <form onSubmit={handleSearch} className="pb-3 sm:hidden">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            {searching
+              ? <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+              : <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            }
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Kart adı, set, satıcı ara..."
+              placeholder="Kart adı, set adı veya @satıcı ara..."
               className="pl-10 bg-gray-50 border-gray-200 h-9"
+              disabled={searching}
             />
           </div>
         </form>
