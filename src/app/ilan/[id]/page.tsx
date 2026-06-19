@@ -2,9 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ChevronLeft, MessageCircle, Store, Calendar } from 'lucide-react'
+import { ChevronLeft, Store, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ConditionBadge from '@/components/shared/ConditionBadge'
+import MessageButton from '@/components/listing/MessageButton'
 import type { Listing } from '@/types'
 
 export default async function IlanPage({ params }: { params: Promise<{ id: string }> }) {
@@ -102,15 +103,17 @@ export default async function IlanPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Satıcıya mesaj */}
-          <div className="pt-2 space-y-3">
-            <Button className="w-full h-11 bg-primary hover:bg-primary/90 text-white rounded-xl gap-2">
-              <MessageCircle className="h-5 w-5" />
-              Satıcıya Mesaj Gönder
-            </Button>
-            <p className="text-center text-xs text-gray-400">
-              Satın alma işlemi satıcı ile doğrudan gerçekleşir.
-            </p>
-          </div>
+          {listing.store && (
+            <div className="pt-2 space-y-3">
+              <MessageButton
+                listingId={listing.id}
+                sellerId={listing.store.user_id}
+              />
+              <p className="text-center text-xs text-gray-400">
+                Satın alma işlemi satıcı ile doğrudan gerçekleşir.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
