@@ -16,7 +16,7 @@ async function getListings(sp: Record<string, string>): Promise<{ listings: List
 
   let query = supabase
     .from('listings')
-    .select('*, product:products(id,name,set_name,number,image_url), store:stores(id,name,slug)', { count: 'exact' })
+    .select('*, product:products(id,name,set_name,set_id,number,image_url), store:stores(id,name,slug)', { count: 'exact' })
     .eq('status', 'active')
 
   if (sp.q) {
@@ -26,6 +26,17 @@ async function getListings(sp: Record<string, string>): Promise<{ listings: List
   if (sp.kondisyon) query = query.eq('condition', sp.kondisyon as Condition)
   if (sp.min) query = query.gte('price', Number(sp.min))
   if (sp.max) query = query.lte('price', Number(sp.max))
+
+  // Set filtresi: ürün tablosu üzerinden filtrele
+  if (sp.set_id) {
+    const { data: prods } = await supabase
+      .from('products')
+      .select('id')
+      .eq('set_id', sp.set_id)
+    const prodIds = (prods ?? []).map((p: { id: string }) => p.id)
+    if (!prodIds.length) return { listings: [], total: 0 }
+    query = query.in('product_id', prodIds)
+  }
 
   if (sp.sirala === 'fiyat-asc') query = query.order('price', { ascending: true })
   else if (sp.sirala === 'fiyat-desc') query = query.order('price', { ascending: false })
@@ -43,11 +54,32 @@ export default async function AraPage({ searchParams }: Props) {
   const sp = await searchParams
   const { listings, total } = await getListings(sp)
 
+  const KATEGORI_LABELS: Record<string, string> = {
+    card: 'Kartlar', sealed: 'Sealed Ürünler', accessory: 'Aksesuarlar', graded: 'Derecelendirilmiş Kartlar',
+  }
+
+  // set_id varsa set adını veritabanından çek
+  let setName: string | null = null
+  if (sp.set_id && listings.length > 0) {
+    setName = (listings[0] as Listing & { product?: { set_name?: string } }).product?.set_name ?? null
+  } else if (sp.set_id) {
+    const supabaseForTitle = await createClient()
+    const { data: sampleProd } = await supabaseForTitle
+      .from('products')
+      .select('set_name')
+      .eq('set_id', sp.set_id)
+      .limit(1)
+      .single()
+    setName = sampleProd?.set_name ?? sp.set_id
+  }
+
   const title = sp.q
     ? `"${sp.q}" için sonuçlar`
-    : sp.kategori
-      ? { card: 'Kartlar', sealed: 'Sealed Ürünler', accessory: 'Aksesuarlar', graded: 'Derecelendirilmiş Kartlar' }[sp.kategori] ?? 'İlanlar'
-      : 'Tüm İlanlar'
+    : sp.set_id
+      ? `${setName ?? sp.set_id} seti ilanları`
+      : sp.kategori
+        ? KATEGORI_LABELS[sp.kategori] ?? 'İlanlar'
+        : 'Tüm İlanlar'
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">

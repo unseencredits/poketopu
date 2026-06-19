@@ -19,14 +19,22 @@ export default function Header() {
     const supabase = createClient()
 
     async function loadUnread(uid: string) {
+      // Önce konuşma ID'lerini al
+      const { data: convs } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`)
+
+      const convIds = (convs ?? []).map((c: { id: string }) => c.id)
+      if (!convIds.length) { setUnread(0); return }
+
       const { count } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('is_read', false)
         .neq('sender_id', uid)
-        .in('conversation_id',
-          supabase.from('conversations').select('id').or(`buyer_id.eq.${uid},seller_id.eq.${uid}`) as any
-        )
+        .in('conversation_id', convIds)
+
       setUnread(count ?? 0)
     }
 
@@ -36,15 +44,7 @@ export default function Header() {
       setUserId(user.id)
       loadUnread(user.id)
 
-      // Gerçek zamanlı okunmamış güncelle
-      const channel = supabase
-        .channel('header-unread')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
-          loadUnread(user.id)
-        })
-        .subscribe()
-
-      return () => { channel.unsubscribe() }
+      // Sayfa değiştiğinde yeniden sayılıyor (pathname dep), realtime gerekmez
     }
 
     init()
@@ -127,11 +127,11 @@ export default function Header() {
       <nav className="border-t border-gray-100 bg-white hidden sm:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex gap-6 h-10 items-center text-sm">
-            <Link href="/ara?kategori=card" className="text-gray-600 hover:text-primary transition-colors font-medium">Kartlar</Link>
+            <Link href="/kartlar" className="text-gray-600 hover:text-primary transition-colors font-medium">Kartlar</Link>
             <Link href="/ara?kategori=sealed" className="text-gray-600 hover:text-primary transition-colors">Sealed Ürünler</Link>
             <Link href="/ara?kategori=graded" className="text-gray-600 hover:text-primary transition-colors">Derecelendirilmiş</Link>
             <Link href="/ara?kategori=accessory" className="text-gray-600 hover:text-primary transition-colors">Aksesuar</Link>
-            <Link href="/magazalar" className="text-gray-600 hover:text-primary transition-colors">Mağazalar</Link>
+            <Link href="/ara" className="text-gray-600 hover:text-primary transition-colors">Tüm İlanlar</Link>
           </div>
         </div>
       </nav>

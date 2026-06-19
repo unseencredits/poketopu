@@ -32,14 +32,14 @@ export default async function IlanPage({ params }: { params: Promise<{ id: strin
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Sol: Fotoğraflar */}
-        <div>
-          <div className="relative aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
+        <div className="flex flex-col items-center">
+          <div className="relative w-full max-w-xs bg-gray-50 rounded-2xl overflow-hidden border border-gray-100" style={{ aspectRatio: '5/7' }}>
             {photos[0] ? (
               <Image
                 src={photos[0]}
                 alt={title}
                 fill
-                className="object-contain p-6"
+                className="object-contain p-4"
                 priority
               />
             ) : (
@@ -52,7 +52,7 @@ export default async function IlanPage({ params }: { params: Promise<{ id: strin
           {photos.length > 1 && (
             <div className="flex gap-2 mt-3">
               {photos.map((url, i) => (
-                <div key={i} className="relative h-16 w-16 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
+                <div key={i} className="relative h-16 w-12 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
                   <Image src={url} alt={`${i + 1}`} fill className="object-contain p-1" />
                 </div>
               ))}
@@ -62,11 +62,16 @@ export default async function IlanPage({ params }: { params: Promise<{ id: strin
 
         {/* Sağ: Detaylar */}
         <div className="flex flex-col gap-5">
-          {listing.product && (
-            <p className="text-sm text-gray-400">{listing.product.set_name} · #{listing.product.number}</p>
+          {listing.product?.set_name && (
+            <p className="text-sm text-gray-400">{listing.product.set_name}</p>
           )}
 
-          <h1 className="text-2xl font-bold text-gray-900 leading-tight">{title}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+            {title}
+            {listing.product?.number && (
+              <span className="text-gray-400 font-normal text-xl ml-2">#{listing.product.number}</span>
+            )}
+          </h1>
 
           <div className="flex items-center gap-3">
             <span className="text-3xl font-bold text-gray-900">

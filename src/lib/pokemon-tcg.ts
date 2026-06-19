@@ -10,13 +10,41 @@ export interface TCGCard {
   types: string[] | null
   hp: string | null
   images: { small: string; large: string }
-  set: { id: string; name: string; series: string }
+  set: { id: string; name: string; series: string; total: number }
 }
 
-export async function searchCards(query: string, page = 1): Promise<{ data: TCGCard[]; totalCount: number }> {
-  const q = encodeURIComponent(`name:"${query}*"`)
+export interface TCGSet {
+  id: string
+  name: string
+  series: string
+  total: number
+  releaseDate: string
+  images: { symbol: string; logo: string }
+}
+
+function buildSearchQuery(q: string): string {
+  const trimmed = q.trim()
+  // Kart numarası formatı: "019", "019/198", "25", "SV001" gibi
+  const numberOnly = /^\d{1,4}(\/\d+)?$/.test(trimmed)
+  if (numberOnly) {
+    const num = trimmed.split('/')[0].replace(/^0+/, '') || '0'
+    return `number:${num}`
+  }
+  return `name:"${trimmed}*"`
+}
+
+export async function searchCards(
+  query: string,
+  page = 1,
+  setId?: string,
+): Promise<{ data: TCGCard[]; totalCount: number }> {
+  let q = buildSearchQuery(query)
+  if (setId) q += ` set.id:${setId}`
+  const encoded = encodeURIComponent(q)
+  // Set seçiliyken daha fazla sonuç getir (set içindeki sayı az)
+  const pageSize = setId ? 20 : 12
   const res = await fetch(
-    `${BASE}/cards?q=${q}&page=${page}&pageSize=12&select=id,name,number,rarity,supertype,subtypes,types,hp,images,set`,
+    `${BASE}/cards?q=${encoded}&page=${page}&pageSize=${pageSize}&select=id,name,number,rarity,supertype,subtypes,types,hp,images,set`,
     { next: { revalidate: 3600 } }
   )
   if (!res.ok) return { data: [], totalCount: 0 }
@@ -29,4 +57,14 @@ export async function getCard(id: string): Promise<TCGCard | null> {
   if (!res.ok) return null
   const json = await res.json()
   return json.data ?? null
+}
+
+export async function getSets(): Promise<TCGSet[]> {
+  const res = await fetch(
+    `${BASE}/sets?select=id,name,series,total,releaseDate,images&orderBy=-releaseDate`,
+    { next: { revalidate: 86400 } }
+  )
+  if (!res.ok) return []
+  const json = await res.json()
+  return json.data ?? []
 }

@@ -1,14 +1,18 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowRight, Search, Sparkles, ShieldCheck, Layers3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase/server'
+import ListingGrid from '@/components/cards/ListingGrid'
+import type { Listing } from '@/types'
 
 const SETS = [
-  { name: 'Scarlet & Violet', slug: 'sv1', color: 'from-violet-100 to-purple-50' },
-  { name: 'Temporal Forces', slug: 'sv5', color: 'from-blue-100 to-sky-50' },
-  { name: 'Paldean Fates', slug: 'sv4pt5', color: 'from-pink-100 to-rose-50' },
-  { name: 'Obsidian Flames', slug: 'sv3', color: 'from-orange-100 to-amber-50' },
-  { name: 'Pokemon 151', slug: 'sv3pt5', color: 'from-red-100 to-rose-50' },
-  { name: 'Base Set', slug: 'base1', color: 'from-yellow-100 to-amber-50' },
+  { name: 'Scarlet & Violet', id: 'sv1', color: 'from-violet-100 to-purple-50' },
+  { name: 'Temporal Forces', id: 'sv5', color: 'from-blue-100 to-sky-50' },
+  { name: 'Paldean Fates', id: 'sv4pt5', color: 'from-pink-100 to-rose-50' },
+  { name: 'Obsidian Flames', id: 'sv3', color: 'from-orange-100 to-amber-50' },
+  { name: 'Pokémon 151', id: 'sv3pt5', color: 'from-red-100 to-rose-50' },
+  { name: 'Paradox Rift', id: 'sv4', color: 'from-yellow-100 to-amber-50' },
 ]
 
 const CONDITIONS = [
@@ -19,7 +23,16 @@ const CONDITIONS = [
   { code: 'D',  label: 'Damaged', stars: 1, cls: 'condition-d' },
 ]
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient()
+  const { data: recentRaw } = await supabase
+    .from('listings')
+    .select('*, product:products(id,name,set_name,number,image_url), store:stores(id,name,slug)')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(6)
+  const recentListings = (recentRaw as Listing[]) ?? []
+
   return (
     <div className="pb-20">
 
@@ -60,9 +73,9 @@ export default function HomePage() {
           {/* Stat strip */}
           <div className="mt-14 flex items-center justify-center gap-8 sm:gap-14 text-center">
             {[
-              { n: 'Beta', label: 'Açık' },
-              { n: '0₺', label: 'Listeleme ücreti' },
-              { n: 'TCG', label: 'Standart koşullar' },
+              { n: 'Beta', label: 'Şu an açık, ücretsiz' },
+              { n: '0₺', label: 'Listeleme ücreti yok' },
+              { n: 'NM → D', label: '5 adımlı koşul ölçeği' },
             ].map(({ n, label }) => (
               <div key={label}>
                 <p className="text-2xl font-bold text-gray-900">{n}</p>
@@ -139,13 +152,20 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {SETS.map(({ name, slug, color }) => (
+            {SETS.map(({ name, id, color }) => (
               <Link
-                key={slug}
-                href={`/set/${slug}`}
+                key={id}
+                href={`/ara?set_id=${id}&kategori=card`}
                 className={`group p-4 rounded-2xl bg-gradient-to-br ${color} border border-white hover:border-primary/20 hover:shadow-md transition-all`}
               >
-                <div className="h-8 w-8 rounded-lg bg-white/60 mb-3 group-hover:bg-white transition-colors" />
+                <div className="relative h-10 w-full mb-3">
+                  <Image
+                    src={`https://images.pokemontcg.io/${id}/logo.png`}
+                    alt={name}
+                    fill
+                    className="object-contain object-left mix-blend-multiply"
+                  />
+                </div>
                 <p className="text-xs font-semibold text-gray-800 leading-tight">{name}</p>
               </Link>
             ))}
@@ -153,33 +173,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── SON İLANLAR placeholder ── */}
-      <section className="py-6 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Son Eklenenler</h2>
-            <Link href="/ara" className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium">
-              Tümünü gör <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+      {/* ── SON İLANLAR ── */}
+      {recentListings.length > 0 && (
+        <section className="py-6 px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Son Eklenenler</h2>
+              <Link href="/ara" className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium">
+                Tümünü gör <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <ListingGrid listings={recentListings} />
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-                <div className="aspect-[3/4] bg-gray-50 animate-pulse" />
-                <div className="p-3 space-y-2">
-                  <div className="h-3 bg-gray-100 rounded-full w-4/5 animate-pulse" />
-                  <div className="h-3 bg-gray-100 rounded-full w-3/5 animate-pulse" />
-                  <div className="h-4 bg-gray-100 rounded-full w-2/5 animate-pulse mt-3" />
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="text-center text-sm text-gray-400 mt-8">
-            Henüz ilan yok.{' '}
-            <Link href="/ilan-ver" className="text-primary hover:underline">İlk ilanı sen ver →</Link>
-          </p>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── CTA ── */}
       <section className="py-16 px-4">
