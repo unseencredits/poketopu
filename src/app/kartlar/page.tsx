@@ -66,7 +66,7 @@ async function getProducts(seri: string | null, setId: string | null): Promise<{
   const map = new Map<string, ProductCard>()
   for (const l of data ?? []) {
     if (!l.product_id || !l.product) continue
-    const p = l.product as { id: string; name: string; set_name: string | null; number: string | null; image_url: string | null }
+    const p = l.product as unknown as { id: string; name: string; set_name: string | null; number: string | null; image_url: string | null }
     const existing = map.get(l.product_id)
     if (existing) {
       existing.count++
