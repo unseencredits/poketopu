@@ -44,20 +44,28 @@ interface Filters {
   max?: string
 }
 
-async function getProducts(seri: string | null, setId: string | null, filters: Filters = {}): Promise<{ products: ProductCard[]; total: number }> {
+// "Tümü" modunda kaç kart gösterilir
+const TUUMU_CARD_LIMIT = 48
+
+async function getProducts(seri: string | null, setId: string | null, filters: Filters = {}): Promise<{ products: ProductCard[]; total: number; capped: boolean }> {
   const supabase = await createClient()
+
+  const isAll = !seri && !setId
 
   let productIds: string[] | null = null
 
   if (setId) {
     const { data: prods } = await supabase.from('products').select('id').eq('set_id', setId)
     productIds = (prods ?? []).map((p: { id: string }) => p.id)
-    if (!productIds.length) return { products: [], total: 0 }
+    if (!productIds.length) return { products: [], total: 0, capped: false }
   } else if (seri) {
     const { data: prods } = await supabase.from('products').select('id').eq('series', seri)
     productIds = (prods ?? []).map((p: { id: string }) => p.id)
-    if (!productIds.length) return { products: [], total: 0 }
+    if (!productIds.length) return { products: [], total: 0, capped: false }
   }
+
+  // "Tümü" için az satır çek; seri/set görünümlerinde daha geniş bırak
+  const QUERY_LIMIT = isAll ? 400 : 5000
 
   let query = supabase
     .from('listings')
@@ -65,6 +73,7 @@ async function getProducts(seri: string | null, setId: string | null, filters: F
     .eq('status', 'active')
     .eq('category', 'card')
     .not('product_id', 'is', null)
+    .limit(QUERY_LIMIT)
 
   if (productIds) query = query.in('product_id', productIds)
   if (filters.kondisyon) query = query.eq('condition', filters.kondisyon as Condition)
@@ -92,7 +101,13 @@ async function getProducts(seri: string | null, setId: string | null, filters: F
   else if (filters.sirala === 'fiyat-desc') products.sort((a, b) => b.minPrice - a.minPrice)
   else products.sort((a, b) => b.count - a.count)
 
-  return { products, total: products.length }
+  // "Tümü" görünümünde yalnızca en popüler N kartı göster
+  const fullCount = products.length
+  if (isAll && products.length > TUUMU_CARD_LIMIT) {
+    products = products.slice(0, TUUMU_CARD_LIMIT)
+  }
+
+  return { products, total: products.length, capped: isAll && fullCount > TUUMU_CARD_LIMIT }
 }
 
 export default async function KartlarPage({ searchParams }: Props) {
@@ -121,7 +136,7 @@ export default async function KartlarPage({ searchParams }: Props) {
     min: sp.min,
     max: sp.max,
   }
-  const { products, total } = await getProducts(selectedSeri, selectedSetId, filters)
+  const { products, total, capped } = await getProducts(selectedSeri, selectedSetId, filters)
   const activeFilterCount = [sp.kondisyon, sp.sirala, sp.min, sp.max].filter(Boolean).length
 
   // Sayfa başlığı
@@ -217,8 +232,14 @@ export default async function KartlarPage({ searchParams }: Props) {
               <h1 className="text-xl font-bold text-gray-900">{pageTitle}</h1>
               <p className="text-sm text-gray-400 mt-0.5">
                 {total.toLocaleString('tr-TR')} farklı kart
+                {capped && <span className="ml-1 text-gray-400">· en popüler</span>}
                 {activeFilterCount > 0 && <span className="ml-1 text-primary">· {activeFilterCount} filtre aktif</span>}
               </p>
+              {capped && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Tüm kartları görmek için soldan bir seri seçin.
+                </p>
+              )}
             </div>
 
             {/* Filtre butonları */}

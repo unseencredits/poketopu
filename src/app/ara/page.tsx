@@ -31,6 +31,7 @@ async function getCardProducts(sp: Record<string, string>): Promise<{ products: 
     .eq('status', 'active')
     .eq('category', 'card')
     .not('product_id', 'is', null)
+    .limit(1000)
 
   if (sp.kondisyon) query = query.eq('condition', sp.kondisyon as Condition)
   if (sp.min) query = query.gte('price', Number(sp.min))
