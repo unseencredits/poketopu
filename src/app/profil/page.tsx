@@ -7,7 +7,7 @@ import Image from 'next/image'
 import {
   User, Store, Package, LogOut, ChevronRight, Plus,
   Pencil, Eye, EyeOff, Trash2, ImagePlus, X, Upload,
-  Banknote, ShoppingBag, AlertCircle,
+  Banknote, ShoppingBag, AlertCircle, Star,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,15 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import type { Profile, Store as StoreType, Listing, ListingStatus } from '@/types'
 
 const MAX_PHOTOS = 4
+
+const RATING_TAGS = [
+  'Zamanında kargo',
+  'Orijinal ürün',
+  'Uygun fiyat',
+  'Dürüst satıcı',
+  'İyi paketleme',
+  'Hızlı iletişim',
+]
 
 export default function ProfilPage() {
   const router = useRouter()
@@ -47,6 +56,15 @@ export default function ProfilPage() {
 
   // Satın almadım
   const [disclaimId, setDisclaimId] = useState<string | null>(null)
+
+  // Puanlama state
+  const [ratedListingIds, setRatedListingIds] = useState<Set<string>>(new Set())
+  const [ratingId, setRatingId] = useState<string | null>(null)
+  const [ratingStars, setRatingStars] = useState(0)
+  const [ratingTags, setRatingTags] = useState<string[]>([])
+  const [ratingComment, setRatingComment] = useState('')
+  const [ratingHover, setRatingHover] = useState(0)
+  const [submittingRating, setSubmittingRating] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -82,6 +100,13 @@ export default function ProfilPage() {
         .order('updated_at', { ascending: false })
         .limit(20)
       setPurchases((myPurchases as unknown as Listing[]) ?? [])
+
+      // Daha önce verilmiş puanlar
+      const { data: myRatings } = await supabase
+        .from('ratings')
+        .select('listing_id')
+        .eq('reviewer_id', user.id)
+      setRatedListingIds(new Set(myRatings?.map(r => r.listing_id) ?? []))
 
       setLoading(false)
     }
@@ -244,6 +269,46 @@ export default function ProfilPage() {
     }
   }
 
+  // ─── Puanlama ────────────────────────────────────────────────────────────────
+
+  function openRating(listingId: string) {
+    setRatingId(listingId)
+    setRatingStars(0)
+    setRatingTags([])
+    setRatingComment('')
+    setRatingHover(0)
+  }
+
+  function toggleTag(tag: string) {
+    setRatingTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+  }
+
+  async function submitRating() {
+    if (!ratingId || ratingStars === 0 || !userId) return
+    const purchase = purchases.find(p => p.id === ratingId)
+    if (!purchase) return
+
+    setSubmittingRating(true)
+    const supabase = createClient()
+
+    const { error } = await supabase.from('ratings').insert({
+      listing_id: ratingId,
+      reviewer_id: userId,
+      seller_store_id: purchase.seller_id,
+      stars: ratingStars,
+      tags: ratingTags,
+      comment: ratingComment.trim() || null,
+    })
+
+    if (!error) {
+      setRatedListingIds(prev => new Set([...prev, ratingId]))
+      setRatingId(null)
+    }
+    setSubmittingRating(false)
+  }
+
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -279,12 +344,7 @@ export default function ProfilPage() {
             <p className="font-bold text-gray-900 text-lg">{profile.full_name ?? profile.username}</p>
             <p className="text-sm text-gray-500">@{profile.username}</p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="text-gray-400 hover:text-red-500 gap-1.5"
-          >
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-400 hover:text-red-500 gap-1.5">
             <LogOut className="h-4 w-4" />
             Çıkış
           </Button>
@@ -319,7 +379,6 @@ export default function ProfilPage() {
             </Link>
           )}
         </div>
-
         {store ? (
           <div className="p-5">
             <p className="font-medium text-gray-900">{store.name}</p>
@@ -368,15 +427,9 @@ export default function ProfilPage() {
               return (
                 <div key={listing.id}>
                   <div className={`flex items-center gap-3 p-4 transition-opacity ${isPaused ? 'opacity-40' : isSold ? 'opacity-60' : ''}`}>
-                    {/* Küçük resim */}
                     <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                      {img && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={img} alt={title} className="h-full w-full object-contain" />
-                      )}
+                      {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
                     </div>
-
-                    {/* Bilgi */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
                       <div className="flex items-center gap-2 mt-0.5">
@@ -397,51 +450,34 @@ export default function ProfilPage() {
                       </div>
                     </div>
 
-                    {/* Aksiyonlar */}
                     {!isSold && (
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         {/* Düzenle */}
                         <Sheet open={editingId === listing.id} onOpenChange={open => { if (!open) setEditingId(null) }}>
                           <SheetTrigger render={
-                            <button
-                              onClick={() => openEdit(listing)}
-                              title="Düzenle"
-                              className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-primary transition-colors"
-                            >
+                            <button onClick={() => openEdit(listing)} title="Düzenle"
+                              className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-primary transition-colors">
                               <Pencil className="h-4 w-4" />
                             </button>
                           } />
                           <SheetContent side="right" className="w-full sm:w-96 p-6 overflow-y-auto">
                             <p className="font-semibold text-gray-900 mb-5">İlanı Düzenle</p>
-
                             {editingListing && (
                               <div className="space-y-5">
                                 <div>
                                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Fiyat (₺)</label>
                                   <div className="relative">
                                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₺</span>
-                                    <input
-                                      type="number"
-                                      value={editPrice}
-                                      onChange={e => setEditPrice(e.target.value)}
-                                      min="0"
-                                      step="0.01"
-                                      className="w-full pl-8 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary"
-                                    />
+                                    <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)} min="0" step="0.01"
+                                      className="w-full pl-8 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary" />
                                   </div>
                                 </div>
-
                                 <div>
                                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Açıklama / Not</label>
-                                  <textarea
-                                    value={editNotes}
-                                    onChange={e => setEditNotes(e.target.value)}
-                                    rows={3}
+                                  <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3}
                                     placeholder="Kart hakkında bilgi, kusurlar..."
-                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-primary"
-                                  />
+                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-primary" />
                                 </div>
-
                                 <div>
                                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
                                     Fotoğraflar ({editPhotos.length}/{MAX_PHOTOS})
@@ -450,58 +486,32 @@ export default function ProfilPage() {
                                     {editPhotos.map((url, i) => (
                                       <div key={url} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
                                         <Image src={url} alt={`Fotoğraf ${i + 1}`} fill className="object-cover" />
-                                        {i === 0 && (
-                                          <div className="absolute top-1 left-1 bg-black/60 text-white text-[9px] px-1 py-0.5 rounded font-medium">Kapak</div>
-                                        )}
-                                        <button
-                                          onClick={() => setEditPhotos(prev => prev.filter((_, idx) => idx !== i))}
-                                          className="absolute top-1 right-1 h-5 w-5 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
+                                        {i === 0 && <div className="absolute top-1 left-1 bg-black/60 text-white text-[9px] px-1 py-0.5 rounded font-medium">Kapak</div>}
+                                        <button onClick={() => setEditPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                                          className="absolute top-1 right-1 h-5 w-5 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                           <X className="h-3 w-3" />
                                         </button>
                                       </div>
                                     ))}
-                                    {editPhotos.length < MAX_PHOTOS && (
-                                      Array.from({ length: MAX_PHOTOS - editPhotos.length }).map((_, i) => (
-                                        <div
-                                          key={`empty-${i}`}
-                                          onClick={() => photoInputRef.current?.click()}
-                                          className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors"
-                                        >
-                                          {i === 0 ? (
-                                            uploadingPhoto
-                                              ? <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                              : <Upload className="h-4 w-4 text-gray-300" />
-                                          ) : null}
-                                        </div>
-                                      ))
-                                    )}
+                                    {editPhotos.length < MAX_PHOTOS && Array.from({ length: MAX_PHOTOS - editPhotos.length }).map((_, i) => (
+                                      <div key={`empty-${i}`} onClick={() => photoInputRef.current?.click()}
+                                        className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors">
+                                        {i === 0 ? (uploadingPhoto ? <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" /> : <Upload className="h-4 w-4 text-gray-300" />) : null}
+                                      </div>
+                                    ))}
                                   </div>
                                   {editPhotos.length < MAX_PHOTOS && (
-                                    <button
-                                      onClick={() => photoInputRef.current?.click()}
-                                      disabled={uploadingPhoto}
-                                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-gray-200 text-sm text-gray-500 hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-40"
-                                    >
+                                    <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}
+                                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-gray-200 text-sm text-gray-500 hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-40">
                                       <ImagePlus className="h-4 w-4" />
                                       {uploadingPhoto ? 'Yükleniyor...' : 'Fotoğraf Ekle'}
                                     </button>
                                   )}
-                                  <input
-                                    ref={photoInputRef}
-                                    type="file"
-                                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                                    multiple
-                                    className="hidden"
-                                    onChange={e => uploadPhoto(e.target.files)}
-                                  />
+                                  <input ref={photoInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" multiple className="hidden"
+                                    onChange={e => uploadPhoto(e.target.files)} />
                                 </div>
-
-                                <Button
-                                  onClick={saveEdit}
-                                  disabled={saving || !editPrice || Number(editPrice) <= 0}
-                                  className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl"
-                                >
+                                <Button onClick={saveEdit} disabled={saving || !editPrice || Number(editPrice) <= 0}
+                                  className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl">
                                   {saving ? 'Kaydediliyor...' : 'Kaydet'}
                                 </Button>
                               </div>
@@ -513,11 +523,8 @@ export default function ProfilPage() {
                         {listing.status === 'active' && (
                           <Sheet open={soldModalId === listing.id} onOpenChange={open => { if (!open) setSoldModalId(null) }}>
                             <SheetTrigger render={
-                              <button
-                                onClick={() => openSoldModal(listing)}
-                                title="Satıldı Olarak İşaretle"
-                                className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-emerald-500 transition-colors"
-                              >
+                              <button onClick={() => openSoldModal(listing)} title="Satıldı Olarak İşaretle"
+                                className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-emerald-500 transition-colors">
                                 <Banknote className="h-4 w-4" />
                               </button>
                             } />
@@ -526,7 +533,6 @@ export default function ProfilPage() {
                               <p className="text-sm text-gray-500 mb-5">
                                 {soldModalListing?.custom_title ?? (soldModalListing as (Listing & { product?: { name: string } }) | undefined)?.product?.name ?? ''}
                               </p>
-
                               {soldBuyersLoading ? (
                                 <div className="flex items-center justify-center py-8">
                                   <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -540,15 +546,10 @@ export default function ProfilPage() {
                                       </p>
                                       <div className="space-y-2">
                                         {soldBuyers.map(buyer => (
-                                          <button
-                                            key={buyer.id}
-                                            onClick={() => setSelectedBuyerId(buyer.id)}
+                                          <button key={buyer.id} onClick={() => setSelectedBuyerId(buyer.id)}
                                             className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${
-                                              selectedBuyerId === buyer.id
-                                                ? 'border-emerald-500 bg-emerald-50'
-                                                : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                                            }`}
-                                          >
+                                              selectedBuyerId === buyer.id ? 'border-emerald-500 bg-emerald-50' : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                            }`}>
                                             <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-gray-500">
                                               {(buyer.full_name ?? buyer.username).charAt(0).toUpperCase()}
                                             </div>
@@ -566,25 +567,16 @@ export default function ProfilPage() {
                                       </div>
                                     </div>
                                   )}
-
                                   {soldBuyers.length === 0 && !soldOutside && (
                                     <div className="text-center py-4 text-sm text-gray-400">
                                       Bu ilanla ilgili mesajlaşan kullanıcı yok.
                                     </div>
                                   )}
-
-                                  {/* Poketopu dışında sat */}
                                   <button
-                                    onClick={() => {
-                                      setSoldOutside(v => !v)
-                                      if (!soldOutside) setSelectedBuyerId(null)
-                                    }}
+                                    onClick={() => { setSoldOutside(v => !v); if (!soldOutside) setSelectedBuyerId(null) }}
                                     className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${
-                                      soldOutside
-                                        ? 'border-gray-400 bg-gray-50'
-                                        : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                                    }`}
-                                  >
+                                      soldOutside ? 'border-gray-400 bg-gray-50' : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                    }`}>
                                     <div className={`h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                                       soldOutside ? 'border-gray-600 bg-gray-600' : 'border-gray-300'
                                     }`}>
@@ -595,12 +587,8 @@ export default function ProfilPage() {
                                       <p className="text-xs text-gray-400">İlan kapanır ama satış istatistiklerine eklenmez</p>
                                     </div>
                                   </button>
-
-                                  <Button
-                                    onClick={confirmSold}
-                                    disabled={markingSold || (!soldOutside && !selectedBuyerId)}
-                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
-                                  >
+                                  <Button onClick={confirmSold} disabled={markingSold || (!soldOutside && !selectedBuyerId)}
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
                                     {markingSold ? 'Kaydediliyor...' : 'Satıldı Olarak İşaretle'}
                                   </Button>
                                 </div>
@@ -610,44 +598,28 @@ export default function ProfilPage() {
                         )}
 
                         {/* Yayından kaldır / Aktif et */}
-                        <button
-                          onClick={() => toggleStatus(listing)}
-                          title={isPaused ? 'Tekrar Yayınla' : 'Yayından Kaldır'}
-                          className={`p-2 rounded-xl hover:bg-gray-50 transition-colors ${
-                            isPaused ? 'text-orange-400 hover:text-green-500' : 'text-gray-400 hover:text-orange-500'
-                          }`}
-                        >
+                        <button onClick={() => toggleStatus(listing)} title={isPaused ? 'Tekrar Yayınla' : 'Yayından Kaldır'}
+                          className={`p-2 rounded-xl hover:bg-gray-50 transition-colors ${isPaused ? 'text-orange-400 hover:text-green-500' : 'text-gray-400 hover:text-orange-500'}`}>
                           {isPaused ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                         </button>
 
                         {/* Sil */}
-                        <button
-                          onClick={() => setConfirmDeleteId(listing.id)}
-                          title="Sil"
-                          className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-red-500 transition-colors"
-                        >
+                        <button onClick={() => setConfirmDeleteId(listing.id)} title="Sil"
+                          className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-red-500 transition-colors">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {/* Silme onayı */}
                   {isDelConfirm && (
                     <div className="mx-4 mb-3 px-4 py-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3">
                       <p className="text-sm text-red-700 flex-1">İlanı kalıcı olarak silmek istediğine emin misin?</p>
-                      <button
-                        onClick={() => deleteListing(listing.id)}
-                        className="text-xs font-semibold text-red-600 hover:text-red-700 px-2 py-1 rounded-lg bg-red-100 hover:bg-red-200 transition-colors whitespace-nowrap"
-                      >
+                      <button onClick={() => deleteListing(listing.id)}
+                        className="text-xs font-semibold text-red-600 hover:text-red-700 px-2 py-1 rounded-lg bg-red-100 hover:bg-red-200 transition-colors whitespace-nowrap">
                         Evet, Sil
                       </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(null)}
-                        className="text-xs text-gray-500 hover:text-gray-700"
-                      >
-                        İptal
-                      </button>
+                      <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-gray-500 hover:text-gray-700">İptal</button>
                     </div>
                   )}
                 </div>
@@ -670,15 +642,13 @@ export default function ProfilPage() {
             {purchases.map(item => {
               const title = item.custom_title ?? (item as Listing & { product?: { name: string } }).product?.name ?? '—'
               const img = item.photos?.[0] ?? (item as Listing & { product?: { image_url: string | null } }).product?.image_url
+              const alreadyRated = ratedListingIds.has(item.id)
 
               return (
                 <div key={item.id}>
                   <div className="flex items-center gap-3 p-4">
                     <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                      {img && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={img} alt={title} className="h-full w-full object-contain" />
-                      )}
+                      {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
@@ -686,30 +656,121 @@ export default function ProfilPage() {
                         {item.price.toLocaleString('tr-TR')} ₺
                       </p>
                     </div>
-                    <button
-                      onClick={() => setDisclaimId(item.id)}
-                      title="Ben satın almadım"
-                      className="p-2 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-red-400 transition-colors"
-                    >
-                      <AlertCircle className="h-4 w-4" />
-                    </button>
+
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* Puan Ver / Puanlandı */}
+                      {alreadyRated ? (
+                        <span className="text-xs text-yellow-600 font-medium flex items-center gap-1 px-2">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          Puanlandı
+                        </span>
+                      ) : (
+                        <Sheet open={ratingId === item.id} onOpenChange={open => { if (!open) setRatingId(null) }}>
+                          <SheetTrigger render={
+                            <button onClick={() => openRating(item.id)}
+                              className="flex items-center gap-1 text-xs font-medium text-yellow-600 hover:text-yellow-700 px-2 py-1.5 rounded-xl hover:bg-yellow-50 transition-colors border border-yellow-200">
+                              <Star className="h-3.5 w-3.5" />
+                              Puan Ver
+                            </button>
+                          } />
+                          <SheetContent side="right" className="w-full sm:w-96 p-6 overflow-y-auto">
+                            <p className="font-semibold text-gray-900 mb-1">Satıcıyı Puanla</p>
+                            <p className="text-sm text-gray-500 mb-6">{title}</p>
+
+                            <div className="space-y-6">
+                              {/* Yıldız seçimi */}
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Genel Puan</p>
+                                <div className="flex items-center gap-2">
+                                  {[1, 2, 3, 4, 5].map(star => (
+                                    <button
+                                      key={star}
+                                      onClick={() => setRatingStars(star)}
+                                      onMouseEnter={() => setRatingHover(star)}
+                                      onMouseLeave={() => setRatingHover(0)}
+                                      className="transition-transform hover:scale-110"
+                                    >
+                                      <Star className={`h-9 w-9 transition-colors ${
+                                        star <= (ratingHover || ratingStars)
+                                          ? 'fill-yellow-400 text-yellow-400'
+                                          : 'text-gray-200'
+                                      }`} />
+                                    </button>
+                                  ))}
+                                  {ratingStars > 0 && (
+                                    <span className="text-sm text-gray-500 ml-1">
+                                      {['', 'Berbat', 'Kötü', 'İdare Eder', 'İyi', 'Mükemmel'][ratingStars]}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Etiketler */}
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                                  Öne Çıkan Özellikler <span className="normal-case font-normal">(isteğe bağlı)</span>
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {RATING_TAGS.map(tag => (
+                                    <button
+                                      key={tag}
+                                      onClick={() => toggleTag(tag)}
+                                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                                        ratingTags.includes(tag)
+                                          ? 'bg-yellow-50 border-yellow-400 text-yellow-700 font-medium'
+                                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                      }`}
+                                    >
+                                      {ratingTags.includes(tag) && '✓ '}{tag}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Yorum */}
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                                  Yorum <span className="normal-case font-normal">(isteğe bağlı)</span>
+                                </p>
+                                <textarea
+                                  value={ratingComment}
+                                  onChange={e => setRatingComment(e.target.value)}
+                                  rows={3}
+                                  maxLength={300}
+                                  placeholder="Deneyimini paylaş..."
+                                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-primary"
+                                />
+                                <p className="text-xs text-gray-400 text-right mt-1">{ratingComment.length}/300</p>
+                              </div>
+
+                              <Button
+                                onClick={submitRating}
+                                disabled={submittingRating || ratingStars === 0}
+                                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl"
+                              >
+                                {submittingRating ? 'Gönderiliyor...' : 'Puanı Gönder'}
+                              </Button>
+                            </div>
+                          </SheetContent>
+                        </Sheet>
+                      )}
+
+                      {/* Ben satın almadım */}
+                      <button onClick={() => setDisclaimId(item.id)} title="Ben satın almadım"
+                        className="p-2 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-red-400 transition-colors">
+                        <AlertCircle className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
 
                   {disclaimId === item.id && (
                     <div className="mx-4 mb-3 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3">
                       <p className="text-sm text-amber-800 flex-1">Bu ürünü satın almadın mı?</p>
-                      <button
-                        onClick={() => disclaimPurchase(item.id)}
-                        className="text-xs font-semibold text-amber-700 hover:text-amber-800 px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 transition-colors whitespace-nowrap"
-                      >
+                      <button onClick={() => disclaimPurchase(item.id)}
+                        className="text-xs font-semibold text-amber-700 hover:text-amber-800 px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 transition-colors whitespace-nowrap">
                         Evet, Satın Almadım
                       </button>
-                      <button
-                        onClick={() => setDisclaimId(null)}
-                        className="text-xs text-gray-500 hover:text-gray-700"
-                      >
-                        İptal
-                      </button>
+                      <button onClick={() => setDisclaimId(null)} className="text-xs text-gray-500 hover:text-gray-700">İptal</button>
                     </div>
                   )}
                 </div>
