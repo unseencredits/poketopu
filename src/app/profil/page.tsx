@@ -1,12 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { User, Store, Package, LogOut, ChevronRight, Plus } from 'lucide-react'
+import Image from 'next/image'
+import {
+  User, Store, Package, LogOut, ChevronRight, Plus,
+  Pencil, Eye, EyeOff, Trash2, ImagePlus, X, Upload,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import type { Profile, Store as StoreType, Listing } from '@/types'
+
+const MAX_PHOTOS = 4
 
 export default function ProfilPage() {
   const router = useRouter()
@@ -14,12 +21,26 @@ export default function ProfilPage() {
   const [store, setStore] = useState<StoreType | null>(null)
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editPrice, setEditPrice] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editPhotos, setEditPhotos] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+
+  // Delete confirmation
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/giris'); return }
+      setUserId(user.id)
 
       const [{ data: prof }, { data: st }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
@@ -36,7 +57,7 @@ export default function ProfilPage() {
           .eq('seller_id', st.id)
           .neq('status', 'deleted')
           .order('created_at', { ascending: false })
-          .limit(20)
+          .limit(50)
         setListings((myListings as Listing[]) ?? [])
       }
 
@@ -50,6 +71,76 @@ export default function ProfilPage() {
     await supabase.auth.signOut()
     router.push('/')
     router.refresh()
+  }
+
+  function openEdit(listing: Listing) {
+    setEditingId(listing.id)
+    setEditPrice(String(listing.price))
+    setEditNotes(listing.notes ?? '')
+    setEditPhotos(listing.photos ?? [])
+  }
+
+  async function saveEdit() {
+    if (!editingId) return
+    setSaving(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('listings').update({
+      price: Number(editPrice),
+      notes: editNotes.trim() || null,
+      photos: editPhotos,
+    }).eq('id', editingId)
+
+    if (!error) {
+      setListings(prev => prev.map(l =>
+        l.id === editingId
+          ? { ...l, price: Number(editPrice), notes: editNotes.trim() || null, photos: editPhotos }
+          : l
+      ))
+      setEditingId(null)
+    }
+    setSaving(false)
+  }
+
+  async function uploadPhoto(files: FileList | null) {
+    if (!files || !userId) return
+    const remaining = MAX_PHOTOS - editPhotos.length
+    const newFiles = Array.from(files).slice(0, remaining)
+    if (!newFiles.length) return
+
+    setUploadingPhoto(true)
+    const supabase = createClient()
+    const uploaded: string[] = []
+
+    for (const file of newFiles) {
+      const ext = file.name.split('.').pop()
+      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { data, error } = await supabase.storage.from('listings').upload(path, file)
+      if (!error && data) {
+        const { data: { publicUrl } } = supabase.storage.from('listings').getPublicUrl(data.path)
+        uploaded.push(publicUrl)
+      }
+    }
+
+    setEditPhotos(prev => [...prev, ...uploaded].slice(0, MAX_PHOTOS))
+    setUploadingPhoto(false)
+  }
+
+  async function toggleStatus(listing: Listing) {
+    const newStatus = listing.status === 'active' ? 'reserved' : 'active'
+    const supabase = createClient()
+    const { error } = await supabase.from('listings').update({ status: newStatus }).eq('id', listing.id)
+    if (!error) {
+      setListings(prev => prev.map(l => l.id === listing.id ? { ...l, status: newStatus as Listing['status'] } : l))
+    }
+  }
+
+  async function deleteListing(listingId: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('listings').update({ status: 'deleted' }).eq('id', listingId)
+    if (!error) {
+      setListings(prev => prev.filter(l => l.id !== listingId))
+      setConfirmDeleteId(null)
+    }
   }
 
   if (loading) {
@@ -67,6 +158,9 @@ export default function ProfilPage() {
 
   const activeCount = listings.filter(l => l.status === 'active').length
   const soldCount = listings.filter(l => l.status === 'sold').length
+  const pausedCount = listings.filter(l => l.status === 'reserved').length
+
+  const editingListing = listings.find(l => l.id === editingId)
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
@@ -94,9 +188,10 @@ export default function ProfilPage() {
       </div>
 
       {/* İstatistikler */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Aktif İlan', value: activeCount },
+          { label: 'Aktif', value: activeCount },
+          { label: 'Beklemede', value: pausedCount },
           { label: 'Satılan', value: soldCount },
           { label: 'Toplam', value: listings.length },
         ].map(({ label, value }) => (
@@ -160,36 +255,208 @@ export default function ProfilPage() {
         ) : (
           <div className="divide-y divide-gray-50">
             {listings.map(listing => {
-              const title = listing.custom_title ?? (listing as any).product?.name ?? '—'
-              const img = listing.photos?.[0] ?? (listing as any).product?.image_url
+              const title = listing.custom_title ?? (listing as Listing & { product?: { name: string } }).product?.name ?? '—'
+              const img = listing.photos?.[0] ?? (listing as Listing & { product?: { image_url: string | null } }).product?.image_url
+              const isPaused = listing.status === 'reserved'
+              const isDelConfirm = confirmDeleteId === listing.id
+
               return (
-                <Link
-                  key={listing.id}
-                  href={`/ilan/${listing.id}`}
-                  className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                    {img && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={img} alt={title} className="h-full w-full object-contain" />
+                <div key={listing.id}>
+                  {/* İlan satırı */}
+                  <div className={`flex items-center gap-3 p-4 transition-opacity ${isPaused ? 'opacity-40' : ''}`}>
+                    {/* Küçük resim */}
+                    <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+                      {img && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={img} alt={title} className="h-full w-full object-contain" />
+                      )}
+                    </div>
+
+                    {/* Bilgi */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                          listing.status === 'active' ? 'bg-green-50 text-green-700' :
+                          listing.status === 'sold' ? 'bg-gray-100 text-gray-500' :
+                          listing.status === 'reserved' ? 'bg-orange-50 text-orange-600' :
+                          'bg-gray-50 text-gray-400'
+                        }`}>
+                          {listing.status === 'active' ? 'Aktif' :
+                           listing.status === 'sold' ? 'Satıldı' :
+                           listing.status === 'reserved' ? 'Yayından Kaldırıldı' : '—'}
+                        </span>
+                        <span className="text-sm font-bold text-gray-900">
+                          {listing.price.toLocaleString('tr-TR')} ₺
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Aksiyonlar */}
+                    {listing.status !== 'sold' && (
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        {/* Düzenle */}
+                        <Sheet open={editingId === listing.id} onOpenChange={open => { if (!open) setEditingId(null) }}>
+                          <SheetTrigger render={
+                            <button
+                              onClick={() => openEdit(listing)}
+                              title="Düzenle"
+                              className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-primary transition-colors"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          } />
+                          <SheetContent side="right" className="w-full sm:w-96 p-6 overflow-y-auto">
+                            <p className="font-semibold text-gray-900 mb-5">İlanı Düzenle</p>
+
+                            {editingListing && (
+                              <div className="space-y-5">
+                                {/* Fiyat */}
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Fiyat (₺)</label>
+                                  <div className="relative">
+                                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₺</span>
+                                    <input
+                                      type="number"
+                                      value={editPrice}
+                                      onChange={e => setEditPrice(e.target.value)}
+                                      min="0"
+                                      step="0.01"
+                                      className="w-full pl-8 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Notlar */}
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Açıklama / Not</label>
+                                  <textarea
+                                    value={editNotes}
+                                    onChange={e => setEditNotes(e.target.value)}
+                                    rows={3}
+                                    placeholder="Kart hakkında bilgi, kusurlar..."
+                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-primary"
+                                  />
+                                </div>
+
+                                {/* Fotoğraflar */}
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                                    Fotoğraflar ({editPhotos.length}/{MAX_PHOTOS})
+                                  </label>
+
+                                  <div className="grid grid-cols-4 gap-2 mb-3">
+                                    {editPhotos.map((url, i) => (
+                                      <div key={url} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
+                                        <Image src={url} alt={`Fotoğraf ${i + 1}`} fill className="object-cover" />
+                                        {i === 0 && (
+                                          <div className="absolute top-1 left-1 bg-black/60 text-white text-[9px] px-1 py-0.5 rounded font-medium">
+                                            Kapak
+                                          </div>
+                                        )}
+                                        <button
+                                          onClick={() => setEditPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                                          className="absolute top-1 right-1 h-5 w-5 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+
+                                    {editPhotos.length < MAX_PHOTOS && (
+                                      <>
+                                        {Array.from({ length: MAX_PHOTOS - editPhotos.length }).map((_, i) => (
+                                          <div
+                                            key={`empty-${i}`}
+                                            onClick={() => photoInputRef.current?.click()}
+                                            className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors"
+                                          >
+                                            {i === 0 ? (
+                                              uploadingPhoto
+                                                ? <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                : <Upload className="h-4 w-4 text-gray-300" />
+                                            ) : null}
+                                          </div>
+                                        ))}
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {editPhotos.length < MAX_PHOTOS && (
+                                    <button
+                                      onClick={() => photoInputRef.current?.click()}
+                                      disabled={uploadingPhoto}
+                                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-gray-200 text-sm text-gray-500 hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-40"
+                                    >
+                                      <ImagePlus className="h-4 w-4" />
+                                      {uploadingPhoto ? 'Yükleniyor...' : 'Fotoğraf Ekle'}
+                                    </button>
+                                  )}
+
+                                  <input
+                                    ref={photoInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                                    multiple
+                                    className="hidden"
+                                    onChange={e => uploadPhoto(e.target.files)}
+                                  />
+                                </div>
+
+                                <Button
+                                  onClick={saveEdit}
+                                  disabled={saving || !editPrice || Number(editPrice) <= 0}
+                                  className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl"
+                                >
+                                  {saving ? 'Kaydediliyor...' : 'Kaydet'}
+                                </Button>
+                              </div>
+                            )}
+                          </SheetContent>
+                        </Sheet>
+
+                        {/* Yayından kaldır / Aktif et */}
+                        <button
+                          onClick={() => toggleStatus(listing)}
+                          title={isPaused ? 'Tekrar Yayınla' : 'Yayından Kaldır'}
+                          className={`p-2 rounded-xl hover:bg-gray-50 transition-colors ${
+                            isPaused ? 'text-orange-400 hover:text-green-500' : 'text-gray-400 hover:text-orange-500'
+                          }`}
+                        >
+                          {isPaused ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        </button>
+
+                        {/* Sil */}
+                        <button
+                          onClick={() => setConfirmDeleteId(listing.id)}
+                          title="Sil"
+                          className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                        listing.status === 'active' ? 'bg-green-50 text-green-700' :
-                        listing.status === 'sold' ? 'bg-gray-100 text-gray-500' :
-                        'bg-yellow-50 text-yellow-700'
-                      }`}>
-                        {listing.status === 'active' ? 'Aktif' : listing.status === 'sold' ? 'Satıldı' : 'Rezerve'}
-                      </span>
+
+                  {/* Silme onayı */}
+                  {isDelConfirm && (
+                    <div className="mx-4 mb-3 px-4 py-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3">
+                      <p className="text-sm text-red-700 flex-1">İlanı kalıcı olarak silmek istediğine emin misin?</p>
+                      <button
+                        onClick={() => deleteListing(listing.id)}
+                        className="text-xs font-semibold text-red-600 hover:text-red-700 px-2 py-1 rounded-lg bg-red-100 hover:bg-red-200 transition-colors whitespace-nowrap"
+                      >
+                        Evet, Sil
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        İptal
+                      </button>
                     </div>
-                  </div>
-                  <p className="text-sm font-bold text-gray-900 flex-shrink-0">
-                    {listing.price.toLocaleString('tr-TR')} ₺
-                  </p>
-                </Link>
+                  )}
+                </div>
               )
             })}
           </div>
