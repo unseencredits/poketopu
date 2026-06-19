@@ -59,7 +59,7 @@ async function getCardProducts(sp: Record<string, string>): Promise<{ products: 
   return { products, total: products.length }
 }
 
-async function getListings(sp: Record<string, string>): Promise<{ listings: Listing[]; total: number }> {
+async function getListings(sp: Record<string, string>, excludeCards = false): Promise<{ listings: Listing[]; total: number }> {
   const supabase = await createClient()
 
   let query = supabase
@@ -68,7 +68,6 @@ async function getListings(sp: Record<string, string>): Promise<{ listings: List
     .eq('status', 'active')
 
   if (sp.q) {
-    // Joined tabloda ilike çalışmadığı için iki adımlı: önce product ID'lerini bul
     const { data: matchedProds } = await supabase
       .from('products')
       .select('id')
@@ -82,6 +81,7 @@ async function getListings(sp: Record<string, string>): Promise<{ listings: List
     }
   }
   if (sp.kategori) query = query.eq('category', sp.kategori as Category)
+  else if (excludeCards) query = query.neq('category', 'card')
   if (sp.kondisyon) query = query.eq('condition', sp.kondisyon as Condition)
   if (sp.min) query = query.gte('price', Number(sp.min))
   if (sp.max) query = query.lte('price', Number(sp.max))
@@ -112,16 +112,19 @@ async function getListings(sp: Record<string, string>): Promise<{ listings: List
 export default async function AraPage({ searchParams }: Props) {
   const sp = await searchParams
   const isCardCategory = sp.kategori === 'card'
+  const isAllCategory = !sp.kategori  // Tüm İlanlar
 
-  const { listings, total: listingTotal } = isCardCategory
-    ? { listings: [] as Listing[], total: 0 }
-    : await getListings(sp)
-
-  const { products, total: productTotal } = isCardCategory
+  // Kart ilanları: category=card veya tüm ilanlar durumunda grupla
+  const { products, total: productTotal } = (isCardCategory || isAllCategory)
     ? await getCardProducts(sp)
     : { products: [] as ProductCard[], total: 0 }
 
-  const total = isCardCategory ? productTotal : listingTotal
+  // Kart dışı ilanlar: category=card değilse getir; tüm ilanlar görünümünde kartları dışla
+  const { listings, total: listingTotal } = isCardCategory
+    ? { listings: [] as Listing[], total: 0 }
+    : await getListings(sp, isAllCategory)
+
+  const total = productTotal + listingTotal
 
   const KATEGORI_LABELS: Record<string, string> = {
     card: 'Kartlar', sealed: 'Sealed Ürünler', accessory: 'Aksesuarlar', graded: 'Derecelendirilmiş Kartlar',
@@ -193,17 +196,13 @@ export default async function AraPage({ searchParams }: Props) {
             </Sheet>
           </div>
 
-          {/* Grid */}
-          {isCardCategory ? (
-            products.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center">
-                <p className="text-sm text-gray-400 mb-3">
-                  {sp.q ? `"${sp.q}" için kart bulunamadı.` : 'Henüz kart ilanı yok.'}
-                </p>
-                <a href="/ilan-ver" className="text-sm text-primary hover:underline">İlk ilanı sen ver →</a>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Kart ürünleri (category=card veya tüm ilanlar) */}
+          {products.length > 0 && (
+            <>
+              {isAllCategory && listings.length > 0 && (
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Kartlar</p>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
                 {products.map(p => (
                   <Link key={p.id} href={`/kart/${p.id}`} className="group block">
                     <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden hover:border-gray-200 hover:shadow-sm transition-all">
@@ -240,22 +239,27 @@ export default async function AraPage({ searchParams }: Props) {
                   </Link>
                 ))}
               </div>
-            )
-          ) : (
+            </>
+          )}
+
+          {/* Kart dışı ilanlar (tüm ilanlar veya diğer kategoriler) */}
+          {!isCardCategory && (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                <ListingGrid
-                  listings={listings}
-                  emptyMessage={sp.q ? `"${sp.q}" için ilan bulunamadı.` : 'Henüz ilan yok.'}
-                />
-              </div>
-              {listings.length === 0 && !sp.q && (
-                <div className="text-center mt-4">
-                  <a href="/ilan-ver" className="text-sm text-primary hover:underline">
-                    İlk ilanı sen ver →
-                  </a>
-                </div>
+              {isAllCategory && listings.length > 0 && products.length > 0 && (
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Diğer İlanlar</p>
               )}
+              {listings.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <ListingGrid listings={listings} emptyMessage="" />
+                </div>
+              ) : products.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center">
+                  <p className="text-sm text-gray-400 mb-3">
+                    {sp.q ? `"${sp.q}" için ilan bulunamadı.` : 'Henüz ilan yok.'}
+                  </p>
+                  <a href="/ilan-ver" className="text-sm text-primary hover:underline">İlk ilanı sen ver →</a>
+                </div>
+              ) : null}
             </>
           )}
         </div>
