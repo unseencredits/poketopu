@@ -124,3 +124,10 @@ export interface Trade {
   profile?: Pick<Profile, 'id' | 'username' | 'avatar_url'>
   product?: Pick<PokemonCard, 'id' | 'name' | 'set_name' | 'number' | 'image_url'>
 }
+
+export interface UserTradePreview {
+  userId: string
+  profile: Pick<Profile, 'id' | 'username' | 'avatar_url'>
+  cardImages: string[]
+  count: number
+}
