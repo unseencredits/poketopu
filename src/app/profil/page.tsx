@@ -7,12 +7,12 @@ import Image from 'next/image'
 import {
   User, Store, Package, LogOut, ChevronRight, Plus,
   Pencil, Eye, EyeOff, Trash2, ImagePlus, X, Upload,
-  Banknote, ShoppingBag, AlertCircle, Star,
+  Banknote, ShoppingBag, AlertCircle, Star, ArrowRightLeft,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import type { Profile, Store as StoreType, Listing, ListingStatus } from '@/types'
+import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
 
 interface Purchase {
   id: string
@@ -50,6 +50,7 @@ export default function ProfilPage() {
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [myTrades, setMyTrades] = useState<Trade[]>([])
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -122,6 +123,15 @@ export default function ProfilPage() {
         .order('created_at', { ascending: false })
         .limit(20)
       setPurchases((mySales as unknown as Purchase[]) ?? [])
+
+      // Takaslarım
+      const { data: trades } = await supabase
+        .from('trades')
+        .select('*, product:products(id,name,set_name,image_url)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(30)
+      setMyTrades((trades as unknown as Trade[]) ?? [])
 
       // Daha önce verilmiş puanlar
       const { data: myRatings } = await supabase
@@ -704,6 +714,80 @@ export default function ProfilPage() {
           </div>
         )}
       </div>
+
+      {/* Takaslarım */}
+      {myTrades.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between p-5 border-b border-gray-50">
+            <div className="flex items-center gap-3">
+              <ArrowRightLeft className="h-5 w-5 text-gray-400" />
+              <p className="font-semibold text-gray-900">Takaslarım</p>
+            </div>
+            <Link href="/takas-ver">
+              <Button size="sm" variant="outline" className="rounded-lg text-xs gap-1">
+                <Plus className="h-3.5 w-3.5" /> Ekle
+              </Button>
+            </Link>
+          </div>
+
+          <div className="divide-y divide-gray-50">
+            {myTrades.map(trade => {
+              const title = trade.custom_title ?? trade.product?.name ?? '—'
+              const img = trade.photos?.[0] ?? trade.product?.image_url
+              return (
+                <div key={trade.id} className="flex items-center gap-3 p-4">
+                  <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+                    {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        trade.type === 'have'
+                          ? 'bg-blue-50 text-blue-600'
+                          : 'bg-orange-50 text-orange-600'
+                      }`}>
+                        {trade.type === 'have' ? 'Elimde Mevcut' : 'Arıyorum'}
+                      </span>
+                      {trade.condition && (
+                        <span className="text-xs text-gray-400">{trade.condition}</span>
+                      )}
+                      {trade.status === 'closed' && (
+                        <span className="text-xs text-gray-400">· Kapalı</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const supabase = createClient()
+                      if (trade.status === 'active') {
+                        await supabase.from('trades').update({ status: 'closed' }).eq('id', trade.id)
+                        setMyTrades(prev => prev.map(t => t.id === trade.id ? { ...t, status: 'closed' } : t))
+                      } else {
+                        await supabase.from('trades').update({ status: 'active' }).eq('id', trade.id)
+                        setMyTrades(prev => prev.map(t => t.id === trade.id ? { ...t, status: 'active' } : t))
+                      }
+                    }}
+                    className="text-xs text-gray-400 hover:text-gray-600 flex-shrink-0"
+                  >
+                    {trade.status === 'active' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const supabase = createClient()
+                      await supabase.from('trades').delete().eq('id', trade.id)
+                      setMyTrades(prev => prev.filter(t => t.id !== trade.id))
+                    }}
+                    className="text-xs text-red-400 hover:text-red-600 flex-shrink-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Satın Aldıklarım */}
       {purchases.length > 0 && (

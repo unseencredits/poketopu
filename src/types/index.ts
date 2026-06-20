@@ -107,3 +107,20 @@ export interface Message {
   created_at: string
   sender?: Profile
 }
+
+export type TradeType = 'have' | 'want'
+
+export interface Trade {
+  id: string
+  user_id: string
+  type: TradeType
+  product_id: string | null
+  custom_title: string | null
+  condition: Condition | null
+  notes: string | null
+  photos: string[]
+  status: 'active' | 'closed'
+  created_at: string
+  profile?: Pick<Profile, 'id' | 'username' | 'avatar_url'>
+  product?: Pick<PokemonCard, 'id' | 'name' | 'set_name' | 'number' | 'image_url'>
+}

@@ -233,6 +233,7 @@ export default function Header() {
             <Link href="/ara?kategori=graded" className="text-gray-600 hover:text-primary transition-colors">Derecelendirilmiş</Link>
             <Link href="/ara?kategori=accessory" className="text-gray-600 hover:text-primary transition-colors">Aksesuar</Link>
             <Link href="/ara" className="text-gray-600 hover:text-primary transition-colors">Tüm İlanlar</Link>
+            <Link href="/takas" className="text-gray-600 hover:text-primary transition-colors">Takas</Link>
           </div>
         </div>
       </nav>
