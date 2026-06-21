@@ -33,13 +33,31 @@ interface Product {
   image_url_hires: string | null
 }
 
+interface TCGPrices {
+  tcgplayer: {
+    updatedAt: string
+    prices: Record<string, { low: number; mid: number; high: number; market: number }>
+  } | null
+  cardmarket: {
+    updatedAt: string
+    prices: {
+      averageSellPrice: number
+      trendPrice: number
+      lowPrice: number
+      avg7: number
+      avg30: number
+    }
+  } | null
+}
+
 interface Props {
   product: Product
   listings: SellerListing[]
   priceHistory: PricePoint[]
+  tcgPrices: TCGPrices
 }
 
-export default function KartDetailClient({ product, listings, priceHistory }: Props) {
+export default function KartDetailClient({ product, listings, priceHistory, tcgPrices }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activePhoto, setActivePhoto] = useState<string | null>(null)
 
@@ -254,6 +272,77 @@ export default function KartDetailClient({ product, listings, priceHistory }: Pr
             </div>
           )}
         </div>
+        {/* Referans Fiyatlar */}
+        {(tcgPrices.tcgplayer || tcgPrices.cardmarket) && (
+          <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Referans Fiyatlar</p>
+            <div className="space-y-3">
+
+              {/* Cardmarket */}
+              {tcgPrices.cardmarket && (() => {
+                const cm = tcgPrices.cardmarket!.prices
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-gray-700">Cardmarket</span>
+                      <span className="text-[10px] text-gray-400">EUR · {tcgPrices.cardmarket!.updatedAt}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Satış Ort.', value: cm.averageSellPrice },
+                        { label: '7 Gün Ort.', value: cm.avg7 },
+                        { label: '30 Gün Ort.', value: cm.avg30 },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="bg-white rounded-xl p-2.5 text-center border border-gray-100">
+                          <p className="text-[10px] text-gray-400 mb-0.5">{label}</p>
+                          <p className="text-sm font-bold text-gray-900">{value.toFixed(2)} €</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 mt-2 text-xs text-gray-500">
+                      <span>En düşük: <span className="font-medium text-gray-700">{cm.lowPrice.toFixed(2)} €</span></span>
+                      <span>·</span>
+                      <span>Trend: <span className="font-medium text-gray-700">{cm.trendPrice.toFixed(2)} €</span></span>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* TCGPlayer */}
+              {tcgPrices.tcgplayer && (() => {
+                const prices = tcgPrices.tcgplayer!.prices
+                const variants = Object.entries(prices)
+                const variantLabels: Record<string, string> = {
+                  normal: 'Normal',
+                  holofoil: 'Holofoil',
+                  reverseHolofoil: 'Reverse Holo',
+                  '1stEditionHolofoil': '1st Ed. Holo',
+                  '1stEditionNormal': '1st Ed. Normal',
+                }
+                return (
+                  <div className={tcgPrices.cardmarket ? 'pt-3 border-t border-gray-100' : ''}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-gray-700">TCGPlayer</span>
+                      <span className="text-[10px] text-gray-400">USD · {tcgPrices.tcgplayer!.updatedAt}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {variants.map(([variant, p]) => (
+                        <div key={variant} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-gray-100">
+                          <span className="text-xs text-gray-600">{variantLabels[variant] ?? variant}</span>
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="text-gray-400">Low: <span className="text-gray-600">${p.low.toFixed(2)}</span></span>
+                            <span className="font-bold text-gray-900">${p.market.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        )}
+
         {/* Koleksiyon + Takip butonları */}
         <div className="flex flex-col gap-2">
           <CollectionButton productId={product.id} />

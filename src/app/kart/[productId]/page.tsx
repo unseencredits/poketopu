@@ -20,6 +20,23 @@ interface SellerListing {
   store: { id: string; name: string; slug: string; user_id: string } | null
 }
 
+interface TCGPrices {
+  tcgplayer: {
+    updatedAt: string
+    prices: Record<string, { low: number; mid: number; high: number; market: number }>
+  } | null
+  cardmarket: {
+    updatedAt: string
+    prices: {
+      averageSellPrice: number
+      trendPrice: number
+      lowPrice: number
+      avg7: number
+      avg30: number
+    }
+  } | null
+}
+
 export default async function KartPage({ params }: PageProps) {
   const { productId } = await params
   const supabase = await createClient()
@@ -45,6 +62,24 @@ export default async function KartPage({ params }: PageProps) {
   if (!product) notFound()
 
   const listings = (rawListings ?? []) as unknown as SellerListing[]
+
+  // pokemontcg.io'dan referans fiyatları çek
+  let tcgPrices: TCGPrices = { tcgplayer: null, cardmarket: null }
+  try {
+    const res = await fetch(
+      `https://api.pokemontcg.io/v2/cards/${productId}?select=tcgplayer,cardmarket`,
+      { next: { revalidate: 3600 } }
+    )
+    if (res.ok) {
+      const json = await res.json()
+      tcgPrices = {
+        tcgplayer: json.data?.tcgplayer ?? null,
+        cardmarket: json.data?.cardmarket ?? null,
+      }
+    }
+  } catch {
+    // sessizce geç
+  }
 
   // Fiyat geçmişi: bu ürünle ilgili tüm satışlar
   const listingIds = (allListings ?? []).map((l: { id: string }) => l.id)
@@ -77,7 +112,7 @@ export default async function KartPage({ params }: PageProps) {
         <ChevronLeft className="h-4 w-4" /> Kartlar
       </Link>
 
-      <KartDetailClient product={product} listings={listings} priceHistory={priceHistory} />
+      <KartDetailClient product={product} listings={listings} priceHistory={priceHistory} tcgPrices={tcgPrices} />
     </div>
   )
 }
