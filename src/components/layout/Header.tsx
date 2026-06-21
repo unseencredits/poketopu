@@ -234,6 +234,7 @@ export default function Header() {
             <Link href="/ara?kategori=accessory" className="text-gray-600 hover:text-primary transition-colors">Aksesuar</Link>
             <Link href="/ara" className="text-gray-600 hover:text-primary transition-colors">Tüm İlanlar</Link>
             <Link href="/takas" className="text-gray-600 hover:text-primary transition-colors">Takas</Link>
+            <Link href="/turnuva" className="text-gray-600 hover:text-primary transition-colors">Turnuva</Link>
           </div>
         </div>
       </nav>
