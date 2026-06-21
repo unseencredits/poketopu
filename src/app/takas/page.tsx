@@ -9,22 +9,41 @@ interface Props {
   searchParams: Promise<Record<string, string>>
 }
 
-async function getTrades(type: 'have' | 'want'): Promise<Trade[]> {
+async function getTrades(type: 'have' | 'want', q?: string): Promise<Trade[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+
+  let query = supabase
     .from('trades')
     .select('*, product:products(id,name,set_name,number,image_url), profile:profiles(id,username,avatar_url)')
     .eq('status', 'active')
     .eq('type', type)
     .order('created_at', { ascending: false })
     .limit(80)
+
+  if (q) {
+    const { data: matchedProds } = await supabase
+      .from('products')
+      .select('id')
+      .ilike('name', `%${q}%`)
+    const ids = (matchedProds ?? []).map((p: { id: string }) => p.id)
+
+    if (ids.length > 0) {
+      query = query.or(`custom_title.ilike.%${q}%,product_id.in.(${ids.join(',')})`)
+    } else {
+      query = query.ilike('custom_title', `%${q}%`)
+    }
+  }
+
+  const { data } = await query
   return (data as unknown as Trade[]) ?? []
 }
 
 export default async function TakasPage({ searchParams }: Props) {
   const sp = await searchParams
   const activeTab = (sp.tab === 'want' ? 'want' : 'have') as 'have' | 'want'
-  const trades = await getTrades(activeTab)
+  const q = sp.q?.trim() || undefined
+
+  const trades = await getTrades(activeTab, q)
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -41,7 +60,7 @@ export default async function TakasPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      <TakasClient trades={trades} activeTab={activeTab} />
+      <TakasClient trades={trades} activeTab={activeTab} searchQuery={q ?? ''} />
     </div>
   )
 }
