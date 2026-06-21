@@ -6,18 +6,18 @@ import { BookMarked, Check, Plus, Minus } from 'lucide-react'
 import type { Condition } from '@/types'
 
 const CONDITIONS: { value: Condition; label: string }[] = [
-  { value: 'nm', label: 'NM' },
-  { value: 'lp', label: 'LP' },
-  { value: 'mp', label: 'MP' },
-  { value: 'hp', label: 'HP' },
-  { value: 'dmg', label: 'DMG' },
+  { value: 'NM', label: 'NM' },
+  { value: 'LP', label: 'LP' },
+  { value: 'MP', label: 'MP' },
+  { value: 'HP', label: 'HP' },
+  { value: 'D', label: 'D' },
 ]
 
 export default function CollectionButton({ productId }: { productId: string }) {
   const [open, setOpen] = useState(false)
   const [inCollection, setInCollection] = useState(false)
   const [quantity, setQuantity] = useState(1)
-  const [condition, setCondition] = useState<Condition>('nm')
+  const [condition, setCondition] = useState<Condition>('NM')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -39,7 +39,7 @@ export default function CollectionButton({ productId }: { productId: string }) {
       if (data) {
         setInCollection(true)
         setQuantity(data.quantity ?? 1)
-        setCondition((data.condition as Condition) ?? 'nm')
+        setCondition((data.condition as Condition) ?? 'NM')
       }
       setLoading(false)
     }
@@ -66,7 +66,7 @@ export default function CollectionButton({ productId }: { productId: string }) {
     await supabase.from('collections').delete().eq('user_id', userId).eq('product_id', productId)
     setInCollection(false)
     setQuantity(1)
-    setCondition('nm')
+    setCondition('NM')
     setSaving(false)
     setOpen(false)
   }

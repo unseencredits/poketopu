@@ -214,7 +214,8 @@ export default function ProfilPage() {
         .limit(30)
 
       if (wlData && wlData.length > 0) {
-        const productIds = (wlData as WatchlistItem[]).map(w => w.product?.id).filter(Boolean) as string[]
+        const typedWl = (wlData as unknown as WatchlistItem[])
+        const productIds = typedWl.map(w => w.product?.id).filter(Boolean) as string[]
         const { data: minPrices } = await supabase
           .from('listings')
           .select('product_id, price')
@@ -227,7 +228,7 @@ export default function ProfilPage() {
           if (!(row.product_id in lowestByProduct)) lowestByProduct[row.product_id] = row.price
         }
 
-        setMyWatchlist((wlData as WatchlistItem[]).map(w => ({
+        setMyWatchlist(typedWl.map(w => ({
           ...w,
           currentLowest: w.product?.id ? lowestByProduct[w.product.id] ?? null : null,
         })))
@@ -255,7 +256,7 @@ export default function ProfilPage() {
           .neq('user_id', user.id)
           .limit(10)
 
-        setTradeMatches((matchingHaves ?? []) as TradeMatch[])
+        setTradeMatches((matchingHaves ?? []) as unknown as TradeMatch[])
       }
 
       // Koleksiyonum
@@ -265,7 +266,7 @@ export default function ProfilPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50)
-      setMyCollections((colData ?? []) as CollectionItem[])
+      setMyCollections((colData ?? []) as unknown as CollectionItem[])
 
       // Daha önce verilmiş puanlar
       const { data: myRatings } = await supabase
