@@ -25,7 +25,7 @@ export default async function MagazaPage({ params }: { params: Promise<{ slug: s
 
   if (!store) notFound()
 
-  const [{ data: listings }, { data: rawRatings }] = await Promise.all([
+  const [{ data: listings }, { data: rawRatings }, { count: salesCount }] = await Promise.all([
     supabase
       .from('listings')
       .select('*, product:products(id,name,set_name,number,image_url), store:stores(id,name,slug)')
@@ -40,6 +40,12 @@ export default async function MagazaPage({ params }: { params: Promise<{ slug: s
       .eq('seller_store_id', store.id)
       .order('created_at', { ascending: false })
       .limit(50),
+
+    supabase
+      .from('sales')
+      .select('id', { count: 'exact', head: true })
+      .eq('seller_store_id', store.id)
+      .eq('sold_outside', false),
   ])
 
   const activeListings = (listings as Listing[] | null) ?? []
@@ -68,6 +74,8 @@ export default async function MagazaPage({ params }: { params: Promise<{ slug: s
   const avgStars = ratings.length > 0
     ? ratings.reduce((acc, r) => acc + r.stars, 0) / ratings.length
     : 0
+
+  const isTrustedSeller = (salesCount ?? 0) >= 5 && ratings.length >= 3 && avgStars >= 4.0
 
   const tagCounts: Record<string, number> = {}
   for (const r of ratings) {
@@ -106,10 +114,15 @@ export default async function MagazaPage({ params }: { params: Promise<{ slug: s
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
               <h1 className="text-2xl font-bold">{store.name}</h1>
               {store.is_verified && (
                 <span className="bg-white/20 text-white text-xs px-2 py-0.5 rounded-full font-medium">✓ Onaylı</span>
+              )}
+              {isTrustedSeller && (
+                <span className="bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 text-xs px-2.5 py-0.5 rounded-full font-medium">
+                  🛡️ Güvenilir Satıcı
+                </span>
               )}
             </div>
             {store.description && (
@@ -119,6 +132,11 @@ export default async function MagazaPage({ params }: { params: Promise<{ slug: s
               <span className="flex items-center gap-1">
                 <Package className="h-3.5 w-3.5" /> {activeListings.length} aktif ilan
               </span>
+              {(salesCount ?? 0) > 0 && (
+                <span className="flex items-center gap-1">
+                  {salesCount} satış
+                </span>
+              )}
               {ratings.length > 0 && (
                 <span className="flex items-center gap-1.5">
                   <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
