@@ -3,15 +3,16 @@
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { User, ArrowRightLeft, ChevronRight } from 'lucide-react'
-import type { UserTradePreview } from '@/types'
+import { User, ArrowRightLeft } from 'lucide-react'
+import type { Trade } from '@/types'
+import ConditionBadge from '@/components/shared/ConditionBadge'
 
 interface Props {
-  users: UserTradePreview[]
+  trades: Trade[]
   activeTab: 'have' | 'want'
 }
 
-export default function TakasClient({ users, activeTab }: Props) {
+export default function TakasClient({ trades, activeTab }: Props) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -45,7 +46,7 @@ export default function TakasClient({ users, activeTab }: Props) {
         </button>
       </div>
 
-      {users.length === 0 ? (
+      {trades.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 p-16 text-center">
           <ArrowRightLeft className="h-8 w-8 text-gray-200 mx-auto mb-3" />
           <p className="text-sm text-gray-400 mb-3">
@@ -59,8 +60,8 @@ export default function TakasClient({ users, activeTab }: Props) {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {users.map(user => (
-            <UserTradeCard key={user.userId} user={user} type={activeTab} />
+          {trades.map(trade => (
+            <TradeCard key={trade.id} trade={trade} />
           ))}
         </div>
       )}
@@ -68,90 +69,59 @@ export default function TakasClient({ users, activeTab }: Props) {
   )
 }
 
-function UserTradeCard({ user, type }: { user: UserTradePreview; type: 'have' | 'want' }) {
-  const href = `/takas/${user.profile.username}`
+function TradeCard({ trade }: { trade: Trade }) {
+  const title = trade.custom_title ?? trade.product?.name ?? 'İsimsiz'
+  const photo = trade.photos?.[0] ?? trade.product?.image_url ?? null
+  const username = trade.profile?.username
 
   return (
-    <Link href={href} className="group block">
-      <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden hover:border-gray-200 hover:shadow-md transition-all">
-        {/* Kart yelpazesi alanı */}
-        <div className="relative bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-4" style={{ minHeight: 140 }}>
-          <CardFan images={user.cardImages} />
+    <Link href={`/takas/${username}`} className="group block">
+      <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden hover:border-gray-200 hover:shadow-sm transition-all">
+        {/* Fotoğraf */}
+        <div className="relative bg-gray-50" style={{ aspectRatio: '5/7' }}>
+          {photo ? (
+            <Image
+              src={photo}
+              alt={title}
+              fill
+              className="object-contain p-3 group-hover:scale-105 transition-transform duration-300"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-12 h-16 rounded-lg bg-gray-200" />
+            </div>
+          )}
+          {trade.condition && (
+            <div className="absolute top-2 left-2">
+              <ConditionBadge condition={trade.condition} showLabel={false} size="sm" />
+            </div>
+          )}
         </div>
 
-        {/* Kullanıcı bilgisi */}
-        <div className="p-3.5 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <div className="h-5 w-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <User className="h-3 w-3 text-gray-400" />
+        {/* Bilgi */}
+        <div className="p-3">
+          <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+            {title}
+          </p>
+          {trade.product?.set_name && (
+            <p className="text-xs text-gray-400 mt-0.5 truncate">{trade.product.set_name}</p>
+          )}
+          {trade.notes && (
+            <p className="text-xs text-gray-500 mt-1 line-clamp-1">{trade.notes}</p>
+          )}
+
+          {/* Kullanıcı */}
+          {username && (
+            <div className="mt-2 flex items-center gap-1.5 pt-2 border-t border-gray-50">
+              <div className="h-4 w-4 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <User className="h-2.5 w-2.5 text-gray-400" />
               </div>
-              <p className="text-sm font-semibold text-gray-900 truncate">@{user.profile.username}</p>
+              <p className="text-xs text-gray-400 truncate">@{username}</p>
             </div>
-            <p className="text-xs text-gray-400 mt-0.5 pl-6.5">
-              {user.count === 1 ? '1 kart' : `${user.count} kart`}
-            </p>
-          </div>
-          <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-primary transition-colors flex-shrink-0" />
+          )}
         </div>
       </div>
     </Link>
-  )
-}
-
-function CardFan({ images }: { images: string[] }) {
-  if (images.length === 0) {
-    return (
-      <div className="h-24 w-16 rounded-xl bg-gray-200/60 flex items-center justify-center">
-        <ArrowRightLeft className="h-6 w-6 text-gray-300" />
-      </div>
-    )
-  }
-
-  const displayed = images.slice(0, 4)
-  const n = displayed.length
-
-  // Her kart için rotasyon ve sol offset
-  const rotations = [-12, -4, 4, 12]
-  const offsets  = [-30, -10, 10, 30]
-
-  return (
-    <div className="relative flex items-end justify-center" style={{ height: 110, width: 140 }}>
-      {displayed.map((src, i) => {
-        const rot = n === 1 ? 0 : rotations[Math.round((i / (n - 1)) * 3)]
-        const left = n === 1 ? 62 : 70 + offsets[Math.round((i / (n - 1)) * 3)]
-
-        return (
-          <div
-            key={i}
-            className="absolute bottom-0 w-14 h-20 rounded-xl overflow-hidden border-2 border-white shadow-md bg-gray-50"
-            style={{
-              left,
-              zIndex: i + 1,
-              transform: `rotate(${rot}deg)`,
-              transformOrigin: 'bottom center',
-            }}
-          >
-            <Image
-              src={src}
-              alt=""
-              fill
-              className="object-contain p-1"
-              sizes="56px"
-            />
-          </div>
-        )
-      })}
-
-      {/* +N rozeti */}
-      {images.length > 4 && (
-        <div
-          className="absolute -top-1 -right-1 z-10 h-6 w-6 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center shadow"
-          style={{ right: 0, top: 0 }}
-        >
-          +{images.length - 4}
-        </div>
-      )}
-    </div>
   )
 }
