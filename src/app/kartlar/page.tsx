@@ -229,7 +229,17 @@ export default async function KartlarPage({ searchParams }: Props) {
               {selectedSet && (
                 <p className="text-xs text-gray-400 mb-1">{selectedSeri} · {selectedSet.name}</p>
               )}
-              <h1 className="text-xl font-bold text-gray-900">{pageTitle}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold text-gray-900">{pageTitle}</h1>
+                {selectedSetId && (
+                  <Link
+                    href={`/set/${selectedSetId}`}
+                    className="text-xs text-primary hover:underline font-medium"
+                  >
+                    Set Tamamlama →
+                  </Link>
+                )}
+              </div>
               <p className="text-sm text-gray-400 mt-0.5">
                 {total.toLocaleString('tr-TR')} farklı kart
                 {capped && <span className="ml-1 text-gray-400">· en popüler</span>}
