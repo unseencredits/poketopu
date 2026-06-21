@@ -14,6 +14,14 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
 
+interface TradeMatch {
+  id: string
+  product_id: string | null
+  user_id: string
+  product: { id: string; name: string; image_url: string | null } | null
+  profile: { id: string; username: string; avatar_url: string | null } | null
+}
+
 interface WatchlistItem {
   id: string
   price_threshold: number | null
@@ -69,6 +77,7 @@ export default function ProfilPage() {
   const [myTrades, setMyTrades] = useState<Trade[]>([])
   const [myCollections, setMyCollections] = useState<CollectionItem[]>([])
   const [myWatchlist, setMyWatchlist] = useState<WatchlistItem[]>([])
+  const [tradeMatches, setTradeMatches] = useState<TradeMatch[]>([])
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -177,6 +186,31 @@ export default function ProfilPage() {
           ...w,
           currentLowest: w.product?.id ? lowestByProduct[w.product.id] ?? null : null,
         })))
+      }
+
+      // Takas eşleştirme: kullanıcının "Arıyorum" ilanlarına uyan "Elimde Mevcut" ilanları
+      const { data: wantTrades } = await supabase
+        .from('trades')
+        .select('product_id, custom_title')
+        .eq('user_id', user.id)
+        .eq('type', 'want')
+        .eq('status', 'active')
+
+      const wantProductIds = (wantTrades ?? [])
+        .map((t: { product_id: string | null }) => t.product_id)
+        .filter(Boolean) as string[]
+
+      if (wantProductIds.length > 0) {
+        const { data: matchingHaves } = await supabase
+          .from('trades')
+          .select('id, product_id, user_id, product:products(id,name,image_url), profile:profiles(id,username,avatar_url)')
+          .eq('type', 'have')
+          .eq('status', 'active')
+          .in('product_id', wantProductIds)
+          .neq('user_id', user.id)
+          .limit(10)
+
+        setTradeMatches((matchingHaves ?? []) as TradeMatch[])
       }
 
       // Koleksiyonum
@@ -770,6 +804,42 @@ export default function ProfilPage() {
           </div>
         )}
       </div>
+
+      {/* Takas Eşleşmeleri */}
+      {tradeMatches.length > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-3 p-4 border-b border-emerald-100">
+            <ArrowRightLeft className="h-5 w-5 text-emerald-600" />
+            <p className="font-semibold text-emerald-800">Takas Eşleşmeleri</p>
+            <span className="ml-auto text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full font-medium">
+              {tradeMatches.length} yeni
+            </span>
+          </div>
+          <p className="text-xs text-emerald-700 px-4 pt-3 pb-1">
+            Aradığın kartları elinde bulunduran kullanıcılar:
+          </p>
+          <div className="divide-y divide-emerald-100">
+            {tradeMatches.map(match => (
+              <Link
+                key={match.id}
+                href={`/takas/${match.profile?.username}`}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-100/50 transition-colors"
+              >
+                <div className="h-10 w-7 rounded-lg overflow-hidden bg-white flex-shrink-0">
+                  {match.product?.image_url && (
+                    <img src={match.product.image_url} alt={match.product.name} className="h-full w-full object-contain" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-emerald-900 truncate">{match.product?.name}</p>
+                  <p className="text-xs text-emerald-600">@{match.profile?.username} elinde mevcut</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Takip Listem */}
       {myWatchlist.length > 0 && (
