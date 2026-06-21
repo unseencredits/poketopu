@@ -7,12 +7,20 @@ import Image from 'next/image'
 import {
   User, Store, Package, LogOut, ChevronRight, Plus,
   Pencil, Eye, EyeOff, Trash2, ImagePlus, X, Upload,
-  Banknote, ShoppingBag, AlertCircle, Star, ArrowRightLeft,
+  Banknote, ShoppingBag, AlertCircle, Star, ArrowRightLeft, BookMarked,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
+
+interface CollectionItem {
+  id: string
+  quantity: number
+  condition: string | null
+  created_at: string
+  product: { id: string; name: string; set_name: string | null; image_url: string | null; number: string | null } | null
+}
 
 interface Purchase {
   id: string
@@ -51,6 +59,7 @@ export default function ProfilPage() {
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [myTrades, setMyTrades] = useState<Trade[]>([])
+  const [myCollections, setMyCollections] = useState<CollectionItem[]>([])
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -132,6 +141,15 @@ export default function ProfilPage() {
         .order('created_at', { ascending: false })
         .limit(30)
       setMyTrades((trades as unknown as Trade[]) ?? [])
+
+      // Koleksiyonum
+      const { data: colData } = await supabase
+        .from('collections')
+        .select('id, quantity, condition, created_at, product:products(id,name,set_name,image_url,number)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      setMyCollections((colData ?? []) as CollectionItem[])
 
       // Daha önce verilmiş puanlar
       const { data: myRatings } = await supabase
@@ -715,6 +733,71 @@ export default function ProfilPage() {
           </div>
         )}
       </div>
+
+      {/* Koleksiyonum */}
+      {myCollections.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between p-5 border-b border-gray-50">
+            <div className="flex items-center gap-3">
+              <BookMarked className="h-5 w-5 text-gray-400" />
+              <p className="font-semibold text-gray-900">Koleksiyonum</p>
+              <span className="text-xs text-gray-400">{myCollections.length} kart</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 p-4">
+            {myCollections.map(item => {
+              const name = item.product?.name ?? '—'
+              const img = item.product?.image_url
+              const condLabel = item.condition?.toUpperCase() ?? null
+              return (
+                <div key={item.id} className="relative group">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden" style={{ aspectRatio: '5/7' }}>
+                    {img ? (
+                      <img src={img} alt={name} className="w-full h-full object-contain p-2" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-8 h-12 rounded bg-gray-200" />
+                      </div>
+                    )}
+                    {item.quantity > 1 && (
+                      <span className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                        {item.quantity}
+                      </span>
+                    )}
+                    {condLabel && (
+                      <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-black/50 text-white">
+                        {condLabel}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-700 font-medium mt-1 truncate">{name}</p>
+                  <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {item.product && (
+                      <Link
+                        href={`/takas-ver`}
+                        className="flex-1 text-center text-[10px] text-primary bg-red-50 rounded-lg py-1 hover:bg-red-100 transition-colors"
+                      >
+                        Takas Ver
+                      </Link>
+                    )}
+                    <button
+                      onClick={async () => {
+                        const supabase = createClient()
+                        await supabase.from('collections').delete().eq('id', item.id)
+                        setMyCollections(prev => prev.filter(c => c.id !== item.id))
+                      }}
+                      className="h-6 w-6 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Takaslarım */}
       {myTrades.length > 0 && (

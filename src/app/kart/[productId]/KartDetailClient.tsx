@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import ConditionBadge from '@/components/shared/ConditionBadge'
 import MessageButton from '@/components/listing/MessageButton'
 import PriceHistoryChart from '@/components/shared/PriceHistoryChart'
+import CollectionButton from '@/components/shared/CollectionButton'
 import type { Condition } from '@/types'
 import type { PricePoint } from '@/components/shared/PriceHistoryChart'
 
@@ -244,9 +245,12 @@ export default function KartDetailClient({ product, listings, priceHistory }: Pr
             </div>
           )}
         </div>
+        {/* Koleksiyona Ekle */}
+        <CollectionButton productId={product.id} />
+
         {/* Fiyat Geçmişi */}
         {priceHistory.length > 0 && (
-          <div className="mt-6 pt-5 border-t border-gray-100">
+          <div className="pt-5 border-t border-gray-100">
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
               Fiyat Geçmişi
             </h2>
