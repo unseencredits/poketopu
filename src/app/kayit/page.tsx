@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,12 @@ import { createClient } from '@/lib/supabase/client'
 export default function KayitPage() {
   const router = useRouter()
   const [form, setForm] = useState({ username: '', email: '', password: '' })
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data: { user } }) => {
+      if (user) router.replace('/profil')
+    })
+  }, [router])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRight, Search, Sparkles, ShieldCheck, Layers3 } from 'lucide-react'
+import { ArrowRight, Search, ShieldCheck, Layers3, BookMarked, Bell, ArrowRightLeft, Trophy, TrendingDown, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
 import ListingGrid from '@/components/cards/ListingGrid'
@@ -15,12 +15,52 @@ const SETS = [
   { name: 'Paradox Rift', id: 'sv4', color: 'from-yellow-100 to-amber-50' },
 ]
 
-const CONDITIONS = [
-  { code: 'NM', label: 'Near Mint', stars: 5, cls: 'condition-nm' },
-  { code: 'LP', label: 'Lightly Played', stars: 4, cls: 'condition-lp' },
-  { code: 'MP', label: 'Moderately Played', stars: 3, cls: 'condition-mp' },
-  { code: 'HP', label: 'Heavily Played', stars: 2, cls: 'condition-hp' },
-  { code: 'D',  label: 'Damaged', stars: 1, cls: 'condition-d' },
+const FEATURES = [
+  {
+    icon: <Layers3 className="h-5 w-5 text-primary" />,
+    title: 'Tek ürün, tüm satıcılar',
+    desc: 'Aynı kart için farklı satıcıları ve koşulları tek sayfada karşılaştır.',
+  },
+  {
+    icon: <TrendingDown className="h-5 w-5 text-blue-500" />,
+    title: 'Referans fiyatlar',
+    desc: 'Her kart sayfasında Cardmarket ve TCGPlayer güncel piyasa fiyatları.',
+    href: '/kartlar',
+  },
+  {
+    icon: <BookMarked className="h-5 w-5 text-emerald-500" />,
+    title: 'Koleksiyon takibi',
+    desc: 'Sahip olduğun kartları kaydet, koleksiyonunu takip et.',
+    href: '/profil',
+  },
+  {
+    icon: <Bell className="h-5 w-5 text-amber-500" />,
+    title: 'Fiyat alarmı',
+    desc: 'Aradığın kart hedef fiyatına düştüğünde sana bildirilsin.',
+    href: '/profil',
+  },
+  {
+    icon: <ArrowRightLeft className="h-5 w-5 text-violet-500" />,
+    title: 'Takas eşleştirme',
+    desc: 'Takas ilanları ver, istediğin kartı elinde bulunduran koleksiyoncuları bul.',
+    href: '/takas',
+  },
+  {
+    icon: <Tag className="h-5 w-5 text-orange-500" />,
+    title: 'Teklif sistemi',
+    desc: 'Beğendiğin ilana teklif ver, satıcıyla fiyat üzerinde anlaş.',
+  },
+  {
+    icon: <ShieldCheck className="h-5 w-5 text-primary" />,
+    title: 'Güvenilir satıcı rozeti',
+    desc: 'Yüksek puanlı satıcılar otomatik olarak doğrulanmış rozeti alır.',
+  },
+  {
+    icon: <Trophy className="h-5 w-5 text-yellow-500" />,
+    title: 'Turnuva & etkinlik',
+    desc: 'Türkiye genelindeki Pokemon turnuvalarını takip et, kayıt ol.',
+    href: '/turnuva',
+  },
 ]
 
 export default async function HomePage() {
@@ -39,19 +79,15 @@ export default async function HomePage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden bg-white">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,oklch(0.96_0.03_25),transparent)]" />
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-20 pb-24 text-center">
-          <div className="inline-flex items-center gap-2 bg-red-50 border border-red-100 rounded-full px-4 py-1.5 text-xs font-medium text-red-600 mb-8">
-            <Sparkles className="h-3.5 w-3.5" />
-            Beta — Şimdilik tamamen ücretsiz
-          </div>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-16 pb-20 text-center">
 
-          <h1 className="text-5xl sm:text-6xl font-bold text-gray-950 mb-5" style={{ letterSpacing: '-0.03em' }}>
+          <h1 className="text-4xl sm:text-6xl font-bold text-gray-950 mb-5" style={{ letterSpacing: '-0.03em' }}>
             Koleksiyonunu büyüt.
             <br />
             <span className="text-primary">Pokemon TCG</span> pazaryeri.
           </h1>
 
-          <p className="text-lg text-gray-500 mb-10 max-w-lg mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-500 mb-10 max-w-lg mx-auto leading-relaxed">
             Kartlarını sat, ihtiyacın olanı bul. Tek ürün sayfasında tüm satıcıları karşılaştır.
           </p>
 
@@ -71,14 +107,14 @@ export default async function HomePage() {
           </div>
 
           {/* Stat strip */}
-          <div className="mt-14 flex items-center justify-center gap-8 sm:gap-14 text-center">
+          <div className="mt-12 flex items-center justify-center gap-8 sm:gap-14 text-center">
             {[
               { n: 'Beta', label: 'Şu an açık, ücretsiz' },
               { n: '0₺', label: 'Listeleme ücreti yok' },
               { n: 'NM → D', label: '5 adımlı koşul ölçeği' },
             ].map(({ n, label }) => (
               <div key={label}>
-                <p className="text-2xl font-bold text-gray-900">{n}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{n}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{label}</p>
               </div>
             ))}
@@ -86,79 +122,53 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── ÖZELLİKLER ── */}
-      <section className="py-16 px-4 border-y border-gray-100 bg-gray-50/50">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {[
-            {
-              icon: <Layers3 className="h-5 w-5 text-primary" />,
-              title: 'Tek ürün, tüm satıcılar',
-              desc: 'Aynı kart için farklı satıcıları ve koşulları tek sayfada karşılaştır.',
-            },
-            {
-              icon: <ShieldCheck className="h-5 w-5 text-primary" />,
-              title: 'Standart koşul sistemi',
-              desc: 'NM → Damaged arası TCG standardı değerlendirme. Yıldız görünümü ile anlık okuma.',
-            },
-            {
-              icon: <Search className="h-5 w-5 text-primary" />,
-              title: 'Güçlü arama & filtre',
-              desc: 'Set, nadirlik, koşul, fiyat aralığına göre anında filtrele.',
-            },
-          ].map(({ icon, title, desc }) => (
-            <div key={title} className="flex gap-4 p-5 rounded-2xl bg-white border border-gray-100">
-              <div className="flex-shrink-0 mt-0.5 h-9 w-9 rounded-xl bg-red-50 flex items-center justify-center">
-                {icon}
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
-                <p className="text-sm text-gray-500 mt-1 leading-relaxed">{desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── KOŞUL SİSTEMİ ── */}
-      <section className="py-16 px-4">
+      {/* ── PLATFORM ÖZELLİKLERİ ── */}
+      <section className="py-14 px-4 bg-gray-50/60 border-y border-gray-100">
         <div className="max-w-5xl mx-auto">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">Koşul Değerlendirme Sistemi</h2>
-            <p className="text-sm text-gray-500 mt-1">Her ilan için standart TCG koşul ölçeği kullanılır.</p>
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Her şey tek platformda</h2>
+            <p className="text-sm text-gray-500 mt-2">Koleksiyonundan pazarlığa, takasdan turnuvaya.</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {CONDITIONS.map(({ code, label, stars, cls }) => (
-              <div key={code} className="rounded-2xl border border-gray-100 bg-white p-4 text-center">
-                <span className={`inline-block px-3 py-1.5 rounded-full text-sm font-bold ${cls}`}>
-                  {code}
-                </span>
-                <div className="mt-2 text-sm text-gray-400 tracking-[-2px]">
-                  {'★'.repeat(stars)}{'☆'.repeat(5 - stars)}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {FEATURES.map(({ icon, title, desc, href }) => {
+              const content = (
+                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white border border-gray-100 h-full hover:border-gray-200 hover:shadow-sm transition-all">
+                  <div className="h-9 w-9 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0">
+                    {icon}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-sm leading-tight">{title}</h3>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{desc}</p>
+                  </div>
                 </div>
-                <p className="mt-1.5 text-xs text-gray-500 font-medium">{label}</p>
-              </div>
-            ))}
+              )
+              return href ? (
+                <Link key={title} href={href}>{content}</Link>
+              ) : (
+                <div key={title}>{content}</div>
+              )
+            })}
           </div>
         </div>
       </section>
 
       {/* ── SETLER ── */}
-      <section className="py-6 px-4">
+      <section className="py-12 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Popüler Setler</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Popüler Setler</h2>
             <Link href="/kartlar" className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium">
               Tüm setler <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {SETS.map(({ name, id, color }) => (
               <Link
                 key={id}
                 href={`/ara?set_id=${id}&kategori=card`}
-                className={`group p-4 rounded-2xl bg-gradient-to-br ${color} border border-white hover:border-primary/20 hover:shadow-md transition-all`}
+                className={`group p-3 sm:p-4 rounded-2xl bg-gradient-to-br ${color} border border-white hover:border-primary/20 hover:shadow-md transition-all`}
               >
-                <div className="relative h-10 w-full mb-3">
+                <div className="relative h-8 sm:h-10 w-full mb-2 sm:mb-3">
                   <Image
                     src={`https://images.pokemontcg.io/${id}/logo.png`}
                     alt={name}
@@ -178,7 +188,7 @@ export default async function HomePage() {
         <section className="py-6 px-4">
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Son Eklenenler</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Son Eklenenler</h2>
               <Link href="/ara" className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium">
                 Tümünü gör <ArrowRight className="h-3.5 w-3.5" />
               </Link>
@@ -193,7 +203,7 @@ export default async function HomePage() {
       {/* ── CTA ── */}
       <section className="py-16 px-4">
         <div className="max-w-2xl mx-auto text-center bg-gray-950 rounded-3xl p-10">
-          <h2 className="text-3xl font-bold text-white mb-3">Koleksiyonunu sat.</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Koleksiyonunu sat.</h2>
           <p className="text-gray-400 mb-7 text-sm">Birkaç dakikada mağazanı aç, kartlarını listele.</p>
           <Link href="/kayit">
             <Button size="lg" className="bg-white text-gray-950 hover:bg-gray-100 rounded-xl h-12 px-8 text-base font-semibold">

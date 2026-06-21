@@ -12,6 +12,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
 
 interface OfferItem {
@@ -525,91 +526,97 @@ export default function ProfilPage() {
   const soldModalListing = listings.find(l => l.id === soldModalId)
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+    <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
 
       {/* Profil kartı */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-6">
+      <div className="bg-white border border-gray-100 rounded-2xl p-5">
         <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-            <User className="h-7 w-7 text-gray-400" />
+          <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <User className="h-6 w-6 text-gray-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-gray-900 text-lg">{profile.full_name ?? profile.username}</p>
-            <p className="text-sm text-gray-500">@{profile.username}</p>
+            <p className="font-bold text-gray-900">{profile.full_name ?? profile.username}</p>
+            <div className="flex items-center gap-3 mt-0.5">
+              <p className="text-sm text-gray-500">@{profile.username}</p>
+              {store && (
+                <Link href={`/magaza/${store.slug}`} className="text-xs text-primary hover:underline flex items-center gap-0.5">
+                  <Store className="h-3 w-3" /> Mağaza
+                </Link>
+              )}
+            </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-400 hover:text-red-500 gap-1.5">
-            <LogOut className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-400 hover:text-red-500 gap-1.5 text-xs">
+            <LogOut className="h-3.5 w-3.5" />
             Çıkış
           </Button>
         </div>
-      </div>
 
-      {/* İstatistikler */}
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: 'Aktif', value: activeCount },
-          { label: 'Beklemede', value: pausedCount },
-          { label: 'Satılan', value: soldCount },
-          { label: 'Toplam', value: listings.length },
-        ].map(({ label, value }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Mağaza */}
-      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-gray-50">
-          <div className="flex items-center gap-3">
-            <Store className="h-5 w-5 text-gray-400" />
-            <p className="font-semibold text-gray-900">Mağazam</p>
-          </div>
-          {store && (
-            <Link href={`/magaza/${store.slug}`} className="text-sm text-primary hover:underline flex items-center gap-1">
-              Görüntüle <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          )}
+        {/* İstatistikler — profil kartı içinde */}
+        <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-gray-50">
+          {[
+            { label: 'Aktif İlan', value: activeCount },
+            { label: 'Beklemede', value: pausedCount },
+            { label: 'Satılan', value: soldCount },
+            { label: 'Koleksiyon', value: myCollections.length },
+          ].map(({ label, value }) => (
+            <div key={label} className="text-center">
+              <p className="text-xl font-bold text-gray-900">{value}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">{label}</p>
+            </div>
+          ))}
         </div>
-        {store ? (
-          <div className="p-5">
-            <p className="font-medium text-gray-900">{store.name}</p>
-            <p className="text-sm text-gray-500">poketopu.com/magaza/{store.slug}</p>
-          </div>
-        ) : (
-          <div className="p-5 text-center">
-            <p className="text-sm text-gray-500 mb-3">Henüz mağazan yok.</p>
-            <Link href="/ilan-ver">
-              <Button size="sm" className="bg-primary text-white rounded-lg">İlan Vererek Başla</Button>
-            </Link>
-          </div>
-        )}
       </div>
 
-      {/* İlanlarım */}
-      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-gray-50">
-          <div className="flex items-center gap-3">
-            <Package className="h-5 w-5 text-gray-400" />
-            <p className="font-semibold text-gray-900">İlanlarım</p>
-          </div>
-          <Link href="/ilan-ver">
-            <Button size="sm" className="bg-primary text-white rounded-lg gap-1 text-xs h-8">
-              <Plus className="h-3.5 w-3.5" /> Yeni
-            </Button>
-          </Link>
-        </div>
+      {/* Sekmeli içerik */}
+      <Tabs defaultValue="ilanlarim">
+        <TabsList className="w-full h-auto p-1 bg-gray-100 rounded-2xl grid grid-cols-5 gap-1">
+          {[
+            { value: 'ilanlarim',   label: 'İlanlarım',   badge: activeCount > 0 ? activeCount : null },
+            { value: 'alimlarim',   label: 'Alımlarım',   badge: purchases.length > 0 ? purchases.length : null },
+            { value: 'takaslarim',  label: 'Takas',        badge: tradeMatches.length > 0 ? tradeMatches.length : null },
+            { value: 'koleksiyon',  label: 'Koleksiyon',  badge: null },
+            { value: 'teklifler',   label: 'Teklifler',   badge: offers.filter(o => !o.isMine && o.status === 'pending').length > 0 ? offers.filter(o => !o.isMine && o.status === 'pending').length : null },
+          ].map(({ value, label, badge }) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className="relative rounded-xl text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            >
+              {label}
+              {badge !== null && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center">
+                  {badge}
+                </span>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-        {listings.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-sm text-gray-400">Henüz ilan vermedin.</p>
-            <Link href="/ilan-ver" className="text-sm text-primary hover:underline mt-1 inline-block">
-              İlk ilanını ver →
-            </Link>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-50">
+        {/* ── İLANLARIM ── */}
+        <TabsContent value="ilanlarim" className="mt-3">
+              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-gray-50">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-gray-400" />
+                <p className="font-semibold text-gray-900 text-sm">İlanlarım</p>
+                <span className="text-xs text-gray-400">({listings.length})</span>
+              </div>
+              <Link href="/ilan-ver">
+                <Button size="sm" className="bg-primary text-white rounded-lg gap-1 text-xs h-7">
+                  <Plus className="h-3 w-3" /> Yeni İlan
+                </Button>
+              </Link>
+            </div>
+
+            {listings.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-gray-400">Henüz ilan vermedin.</p>
+                <Link href="/ilan-ver" className="text-sm text-primary hover:underline mt-1 inline-block">
+                  İlk ilanını ver →
+                </Link>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
             {listings.map(listing => {
               const title = listing.custom_title ?? (listing as Listing & { product?: { name: string } }).product?.name ?? '—'
               const img = listing.photos?.[0] ?? (listing as Listing & { product?: { image_url: string | null } }).product?.image_url
@@ -846,488 +853,372 @@ export default function ProfilPage() {
                   )}
                 </div>
               )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Takas Eşleşmeleri */}
-      {tradeMatches.length > 0 && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl overflow-hidden">
-          <div className="flex items-center gap-3 p-4 border-b border-emerald-100">
-            <ArrowRightLeft className="h-5 w-5 text-emerald-600" />
-            <p className="font-semibold text-emerald-800">Takas Eşleşmeleri</p>
-            <span className="ml-auto text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full font-medium">
-              {tradeMatches.length} yeni
-            </span>
-          </div>
-          <p className="text-xs text-emerald-700 px-4 pt-3 pb-1">
-            Aradığın kartları elinde bulunduran kullanıcılar:
-          </p>
-          <div className="divide-y divide-emerald-100">
-            {tradeMatches.map(match => (
-              <Link
-                key={match.id}
-                href={`/takas/${match.profile?.username}`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-100/50 transition-colors"
-              >
-                <div className="h-10 w-7 rounded-lg overflow-hidden bg-white flex-shrink-0">
-                  {match.product?.image_url && (
-                    <img src={match.product.image_url} alt={match.product.name} className="h-full w-full object-contain" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-emerald-900 truncate">{match.product?.name}</p>
-                  <p className="text-xs text-emerald-600">@{match.profile?.username} elinde mevcut</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-              </Link>
-            ))}
-          </div>
+              })}
+            </div>
+          )}
         </div>
-      )}
+        </TabsContent>
 
-      {/* Takip Listem */}
-      {myWatchlist.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="flex items-center gap-3 p-5 border-b border-gray-50">
-            <Bell className="h-5 w-5 text-gray-400" />
-            <p className="font-semibold text-gray-900">Takip Listem</p>
-            <span className="text-xs text-gray-400">{myWatchlist.length} kart</span>
-          </div>
-
-          <div className="divide-y divide-gray-50">
-            {myWatchlist.map(item => {
-              const name = item.product?.name ?? '—'
-              const img = item.product?.image_url
-              const alarmed = item.price_threshold != null && item.currentLowest != null && item.currentLowest <= item.price_threshold
-              return (
-                <div key={item.id} className="flex items-center gap-3 p-4">
-                  <div className="h-12 w-9 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
-                    {img && <img src={img} alt={name} className="h-full w-full object-contain" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{name}</p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      {item.currentLowest != null && (
-                        <span className="text-xs text-gray-500">
-                          En düşük: <span className="font-semibold text-gray-800">{item.currentLowest.toLocaleString('tr-TR')} ₺</span>
-                        </span>
-                      )}
-                      {item.price_threshold != null && (
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                          alarmed
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}>
-                          {alarmed ? <BellRing className="h-2.5 w-2.5" /> : <Bell className="h-2.5 w-2.5" />}
-                          Alarm: {item.price_threshold.toLocaleString('tr-TR')} ₺
-                        </span>
+        {/* ── ALIMLARIM ── */}
+        <TabsContent value="alimlarim" className="mt-3">
+          {purchases.length === 0 ? (
+            <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center">
+              <ShoppingBag className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">Henüz satın alma kaydın yok.</p>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-3 p-4 border-b border-gray-50">
+                <ShoppingBag className="h-4 w-4 text-gray-400" />
+                <p className="font-semibold text-gray-900 text-sm">Satın Aldıklarım</p>
+                <span className="text-xs text-gray-400">({purchases.length})</span>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {purchases.map(item => {
+                  const title = item.listing?.custom_title ?? item.listing?.product?.name ?? '—'
+                  const img = item.listing?.photos?.[0] ?? item.listing?.product?.image_url
+                  const alreadyRated = ratedListingIds.has(item.listing_id)
+                  return (
+                    <div key={item.id}>
+                      <div className="flex items-center gap-3 p-4">
+                        <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+                          {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
+                          <p className="text-sm font-bold text-gray-900 mt-0.5">
+                            {item.listing?.price.toLocaleString('tr-TR')} ₺
+                            {item.quantity > 1 && <span className="text-xs text-gray-400 font-normal ml-1.5">× {item.quantity} adet</span>}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {alreadyRated ? (
+                            <span className="text-xs text-yellow-600 font-medium flex items-center gap-1 px-2">
+                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> Puanlandı
+                            </span>
+                          ) : (
+                            <Sheet open={ratingId === item.listing_id} onOpenChange={open => { if (!open) setRatingId(null) }}>
+                              <SheetTrigger render={
+                                <button onClick={() => openRating(item.listing_id)}
+                                  className="flex items-center gap-1 text-xs font-medium text-yellow-600 hover:text-yellow-700 px-2 py-1.5 rounded-xl hover:bg-yellow-50 transition-colors border border-yellow-200">
+                                  <Star className="h-3.5 w-3.5" /> Puan Ver
+                                </button>
+                              } />
+                              <SheetContent side="right" className="w-full sm:w-96 p-6 overflow-y-auto">
+                                <p className="font-semibold text-gray-900 mb-1">Satıcıyı Puanla</p>
+                                <p className="text-sm text-gray-500 mb-6">{title}</p>
+                                <div className="space-y-6">
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Genel Puan</p>
+                                    <div className="flex items-center gap-2">
+                                      {[1,2,3,4,5].map(star => (
+                                        <button key={star} onClick={() => setRatingStars(star)}
+                                          onMouseEnter={() => setRatingHover(star)} onMouseLeave={() => setRatingHover(0)}
+                                          className="transition-transform hover:scale-110">
+                                          <Star className={`h-9 w-9 transition-colors ${star <= (ratingHover || ratingStars) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
+                                        </button>
+                                      ))}
+                                      {ratingStars > 0 && <span className="text-sm text-gray-500 ml-1">{['','Berbat','Kötü','İdare Eder','İyi','Mükemmel'][ratingStars]}</span>}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Öne Çıkan Özellikler <span className="normal-case font-normal">(isteğe bağlı)</span></p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {RATING_TAGS.map(tag => (
+                                        <button key={tag} onClick={() => toggleTag(tag)}
+                                          className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${ratingTags.includes(tag) ? 'bg-yellow-50 border-yellow-400 text-yellow-700 font-medium' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                                          {ratingTags.includes(tag) && '✓ '}{tag}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Yorum <span className="normal-case font-normal">(isteğe bağlı)</span></p>
+                                    <textarea value={ratingComment} onChange={e => setRatingComment(e.target.value)} rows={3} maxLength={300}
+                                      placeholder="Deneyimini paylaş..."
+                                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-primary" />
+                                    <p className="text-xs text-gray-400 text-right mt-1">{ratingComment.length}/300</p>
+                                  </div>
+                                  <Button onClick={submitRating} disabled={submittingRating || ratingStars === 0}
+                                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl">
+                                    {submittingRating ? 'Gönderiliyor...' : 'Puanı Gönder'}
+                                  </Button>
+                                </div>
+                              </SheetContent>
+                            </Sheet>
+                          )}
+                          <button onClick={() => setDisclaimId(item.id)} title="Ben satın almadım"
+                            className="p-2 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-red-400 transition-colors">
+                            <AlertCircle className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      {disclaimId === item.id && (
+                        <div className="mx-4 mb-3 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3">
+                          <p className="text-sm text-amber-800 flex-1">Bu ürünü satın almadın mı?</p>
+                          <button onClick={() => disclaimPurchase(item.id)}
+                            className="text-xs font-semibold text-amber-700 px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 transition-colors whitespace-nowrap">
+                            Evet, Satın Almadım
+                          </button>
+                          <button onClick={() => setDisclaimId(null)} className="text-xs text-gray-500">İptal</button>
+                        </div>
                       )}
                     </div>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      const supabase = createClient()
-                      await supabase.from('watchlists').delete().eq('id', item.id)
-                      setMyWatchlist(prev => prev.filter(w => w.id !== item.id))
-                    }}
-                    className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Koleksiyonum */}
-      {myCollections.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between p-5 border-b border-gray-50">
-            <div className="flex items-center gap-3">
-              <BookMarked className="h-5 w-5 text-gray-400" />
-              <p className="font-semibold text-gray-900">Koleksiyonum</p>
-              <span className="text-xs text-gray-400">{myCollections.length} kart</span>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          )}
+        </TabsContent>
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 p-4">
-            {myCollections.map(item => {
-              const name = item.product?.name ?? '—'
-              const img = item.product?.image_url
-              const condLabel = item.condition?.toUpperCase() ?? null
-              return (
-                <div key={item.id} className="relative group">
-                  <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden" style={{ aspectRatio: '5/7' }}>
-                    {img ? (
-                      <img src={img} alt={name} className="w-full h-full object-contain p-2" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="w-8 h-12 rounded bg-gray-200" />
+        {/* ── TAKASLARIM ── */}
+        <TabsContent value="takaslarim" className="mt-3 space-y-3">
+          {/* Takas Eşleşmeleri */}
+          {tradeMatches.length > 0 && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-3 p-4 border-b border-emerald-100">
+                <ArrowRightLeft className="h-4 w-4 text-emerald-600" />
+                <p className="font-semibold text-emerald-800 text-sm">Takas Eşleşmeleri</p>
+                <span className="ml-auto text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full font-medium">{tradeMatches.length} yeni</span>
+              </div>
+              <p className="text-xs text-emerald-700 px-4 pt-3 pb-1">Aradığın kartları elinde bulunduran kullanıcılar:</p>
+              <div className="divide-y divide-emerald-100">
+                {tradeMatches.map(match => (
+                  <Link key={match.id} href={`/takas/${match.profile?.username}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-emerald-100/50 transition-colors">
+                    <div className="h-10 w-7 rounded-lg overflow-hidden bg-white flex-shrink-0">
+                      {match.product?.image_url && <img src={match.product.image_url} alt={match.product.name} className="h-full w-full object-contain" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-emerald-900 truncate">{match.product?.name}</p>
+                      <p className="text-xs text-emerald-600">@{match.profile?.username} elinde mevcut</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Takaslarım */}
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-gray-50">
+              <div className="flex items-center gap-2">
+                <ArrowRightLeft className="h-4 w-4 text-gray-400" />
+                <p className="font-semibold text-gray-900 text-sm">Takaslarım</p>
+                <span className="text-xs text-gray-400">({myTrades.length})</span>
+              </div>
+              <Link href="/takas-ver">
+                <Button size="sm" variant="outline" className="rounded-lg text-xs gap-1 h-7">
+                  <Plus className="h-3 w-3" /> Ekle
+                </Button>
+              </Link>
+            </div>
+            {myTrades.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-gray-400">Henüz takas ilanın yok.</p>
+                <Link href="/takas-ver" className="text-sm text-primary hover:underline mt-1 inline-block">Takas ilanı ver →</Link>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {myTrades.map(trade => {
+                  const title = trade.custom_title ?? trade.product?.name ?? '—'
+                  const img = trade.photos?.[0] ?? trade.product?.image_url
+                  return (
+                    <div key={trade.id} className="flex items-center gap-3 p-4">
+                      <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+                        {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
                       </div>
-                    )}
-                    {item.quantity > 1 && (
-                      <span className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
-                        {item.quantity}
-                      </span>
-                    )}
-                    {condLabel && (
-                      <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-black/50 text-white">
-                        {condLabel}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-700 font-medium mt-1 truncate">{name}</p>
-                  <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {item.product && (
-                      <Link
-                        href={`/takas-ver`}
-                        className="flex-1 text-center text-[10px] text-primary bg-red-50 rounded-lg py-1 hover:bg-red-100 transition-colors"
-                      >
-                        Takas Ver
-                      </Link>
-                    )}
-                    <button
-                      onClick={async () => {
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${trade.type === 'have' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
+                            {trade.type === 'have' ? 'Elimde Mevcut' : 'Arıyorum'}
+                          </span>
+                          {trade.condition && <span className="text-xs text-gray-400">{trade.condition}</span>}
+                          {trade.status === 'closed' && <span className="text-xs text-gray-400">· Kapalı</span>}
+                        </div>
+                      </div>
+                      <button onClick={async () => {
+                        const supabase = createClient()
+                        if (trade.status === 'active') {
+                          await supabase.from('trades').update({ status: 'closed' }).eq('id', trade.id)
+                          setMyTrades(prev => prev.map(t => t.id === trade.id ? { ...t, status: 'closed' } : t))
+                        } else {
+                          await supabase.from('trades').update({ status: 'active' }).eq('id', trade.id)
+                          setMyTrades(prev => prev.map(t => t.id === trade.id ? { ...t, status: 'active' } : t))
+                        }
+                      }} className="text-xs text-gray-400 hover:text-gray-600 flex-shrink-0">
+                        {trade.status === 'active' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                      <button onClick={async () => {
+                        const supabase = createClient()
+                        await supabase.from('trades').delete().eq('id', trade.id)
+                        setMyTrades(prev => prev.filter(t => t.id !== trade.id))
+                      }} className="text-xs text-red-400 hover:text-red-600 flex-shrink-0">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ── KOLEKSİYON ── */}
+        <TabsContent value="koleksiyon" className="mt-3 space-y-3">
+          {/* Koleksiyonum */}
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-2 p-4 border-b border-gray-50">
+              <BookMarked className="h-4 w-4 text-gray-400" />
+              <p className="font-semibold text-gray-900 text-sm">Koleksiyonum</p>
+              <span className="text-xs text-gray-400">({myCollections.length} kart)</span>
+            </div>
+            {myCollections.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-gray-400">Koleksiyonun boş.</p>
+                <Link href="/kartlar" className="text-sm text-primary hover:underline mt-1 inline-block">Kart ekle →</Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 p-4">
+                {myCollections.map(item => {
+                  const name = item.product?.name ?? '—'
+                  const img = item.product?.image_url
+                  const condLabel = item.condition?.toUpperCase() ?? null
+                  return (
+                    <div key={item.id} className="relative group">
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden" style={{ aspectRatio: '5/7' }}>
+                        {img ? <img src={img} alt={name} className="w-full h-full object-contain p-1" /> : <div className="w-full h-full flex items-center justify-center"><div className="w-8 h-12 rounded bg-gray-200" /></div>}
+                        {item.quantity > 1 && <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">{item.quantity}</span>}
+                        {condLabel && <span className="absolute bottom-1 left-1 px-1 py-0.5 rounded text-[10px] font-semibold bg-black/50 text-white">{condLabel}</span>}
+                      </div>
+                      <p className="text-[10px] text-gray-700 font-medium mt-1 truncate">{name}</p>
+                      <button onClick={async () => {
                         const supabase = createClient()
                         await supabase.from('collections').delete().eq('id', item.id)
                         setMyCollections(prev => prev.filter(c => c.id !== item.id))
-                      }}
-                      className="h-6 w-6 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+                      }} className="absolute top-1 left-1 h-5 w-5 rounded-full bg-white/80 text-red-400 items-center justify-center hidden group-hover:flex shadow-sm">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      )}
 
-      {/* Takaslarım */}
-      {myTrades.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between p-5 border-b border-gray-50">
-            <div className="flex items-center gap-3">
-              <ArrowRightLeft className="h-5 w-5 text-gray-400" />
-              <p className="font-semibold text-gray-900">Takaslarım</p>
+          {/* Takip Listem */}
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-2 p-4 border-b border-gray-50">
+              <Bell className="h-4 w-4 text-gray-400" />
+              <p className="font-semibold text-gray-900 text-sm">Fiyat Takibi</p>
+              <span className="text-xs text-gray-400">({myWatchlist.length} kart)</span>
             </div>
-            <Link href="/takas-ver">
-              <Button size="sm" variant="outline" className="rounded-lg text-xs gap-1">
-                <Plus className="h-3.5 w-3.5" /> Ekle
-              </Button>
-            </Link>
-          </div>
-
-          <div className="divide-y divide-gray-50">
-            {myTrades.map(trade => {
-              const title = trade.custom_title ?? trade.product?.name ?? '—'
-              const img = trade.photos?.[0] ?? trade.product?.image_url
-              return (
-                <div key={trade.id} className="flex items-center gap-3 p-4">
-                  <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                    {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        trade.type === 'have'
-                          ? 'bg-blue-50 text-blue-600'
-                          : 'bg-orange-50 text-orange-600'
-                      }`}>
-                        {trade.type === 'have' ? 'Elimde Mevcut' : 'Arıyorum'}
-                      </span>
-                      {trade.condition && (
-                        <span className="text-xs text-gray-400">{trade.condition}</span>
-                      )}
-                      {trade.status === 'closed' && (
-                        <span className="text-xs text-gray-400">· Kapalı</span>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      const supabase = createClient()
-                      if (trade.status === 'active') {
-                        await supabase.from('trades').update({ status: 'closed' }).eq('id', trade.id)
-                        setMyTrades(prev => prev.map(t => t.id === trade.id ? { ...t, status: 'closed' } : t))
-                      } else {
-                        await supabase.from('trades').update({ status: 'active' }).eq('id', trade.id)
-                        setMyTrades(prev => prev.map(t => t.id === trade.id ? { ...t, status: 'active' } : t))
-                      }
-                    }}
-                    className="text-xs text-gray-400 hover:text-gray-600 flex-shrink-0"
-                  >
-                    {trade.status === 'active' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const supabase = createClient()
-                      await supabase.from('trades').delete().eq('id', trade.id)
-                      setMyTrades(prev => prev.filter(t => t.id !== trade.id))
-                    }}
-                    className="text-xs text-red-400 hover:text-red-600 flex-shrink-0"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Teklifler */}
-      {offers.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="flex items-center gap-3 p-5 border-b border-gray-50">
-            <Tag className="h-5 w-5 text-gray-400" />
-            <p className="font-semibold text-gray-900">Teklifler</p>
-            <span className="ml-auto text-xs text-gray-400">{offers.length} teklif</span>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {offers.map(offer => {
-              const title = offer.listing?.custom_title ?? (offer.listing as { product?: { name: string } | null } | null)?.product?.name ?? '—'
-              const img = (offer.listing as { product?: { image_url: string | null } | null } | null)?.product?.image_url
-              const statusLabel: Record<string, string> = {
-                pending: 'Bekliyor',
-                accepted: 'Kabul Edildi',
-                rejected: 'Reddedildi',
-                withdrawn: 'Geri Çekildi',
-              }
-              const statusColor: Record<string, string> = {
-                pending: 'bg-amber-50 text-amber-700 border-amber-200',
-                accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                rejected: 'bg-red-50 text-red-600 border-red-200',
-                withdrawn: 'bg-gray-50 text-gray-500 border-gray-200',
-              }
-              return (
-                <div key={offer.id} className="flex items-center gap-3 p-4">
-                  <div className="h-12 w-9 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
-                    {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-sm font-bold text-gray-900">{offer.amount.toLocaleString('tr-TR')} ₺</span>
-                      {offer.listing?.price && (
-                        <span className="text-xs text-gray-400">/ {offer.listing.price.toLocaleString('tr-TR')} ₺</span>
-                      )}
-                      {!offer.isMine && offer.buyer && (
-                        <span className="text-xs text-gray-500">@{(offer.buyer as { username: string }).username}</span>
-                      )}
-                      {offer.isMine && <span className="text-xs text-gray-400">Verdiğim teklif</span>}
-                    </div>
-                    {offer.message && (
-                      <p className="text-xs text-gray-500 mt-0.5 truncate italic">{offer.message}</p>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${statusColor[offer.status] ?? statusColor.pending}`}>
-                      {statusLabel[offer.status] ?? offer.status}
-                    </span>
-                    {!offer.isMine && offer.status === 'pending' && (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={async () => {
-                            const supabase = createClient()
-                            await supabase.from('offers').update({ status: 'accepted' }).eq('id', offer.id)
-                            setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'accepted' } : o))
-                          }}
-                          className="text-[10px] px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-medium"
-                        >
-                          Kabul
-                        </button>
-                        <button
-                          onClick={async () => {
-                            const supabase = createClient()
-                            await supabase.from('offers').update({ status: 'rejected' }).eq('id', offer.id)
-                            setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'rejected' } : o))
-                          }}
-                          className="text-[10px] px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-medium"
-                        >
-                          Red
-                        </button>
+            {myWatchlist.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-gray-400">Takip listesi boş.</p>
+                <p className="text-xs text-gray-400 mt-1">Kart sayfalarından fiyat alarmı ekleyebilirsin.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {myWatchlist.map(item => {
+                  const name = item.product?.name ?? '—'
+                  const img = item.product?.image_url
+                  const alarmed = item.price_threshold != null && item.currentLowest != null && item.currentLowest <= item.price_threshold
+                  return (
+                    <div key={item.id} className="flex items-center gap-3 p-4">
+                      <div className="h-12 w-9 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
+                        {img && <img src={img} alt={name} className="h-full w-full object-contain" />}
                       </div>
-                    )}
-                    {offer.isMine && offer.status === 'pending' && (
-                      <button
-                        onClick={async () => {
-                          const supabase = createClient()
-                          await supabase.from('offers').update({ status: 'withdrawn' }).eq('id', offer.id)
-                          setOffers(prev => prev.filter(o => o.id !== offer.id))
-                        }}
-                        className="text-[10px] text-gray-400 hover:text-red-500"
-                      >
-                        Geri çek
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{name}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          {item.currentLowest != null && <span className="text-xs text-gray-500">En düşük: <span className="font-semibold text-gray-800">{item.currentLowest.toLocaleString('tr-TR')} ₺</span></span>}
+                          {item.price_threshold != null && (
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${alarmed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                              {alarmed ? <BellRing className="h-2.5 w-2.5" /> : <Bell className="h-2.5 w-2.5" />}
+                              Alarm: {item.price_threshold.toLocaleString('tr-TR')} ₺
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button onClick={async () => {
+                        const supabase = createClient()
+                        await supabase.from('watchlists').delete().eq('id', item.id)
+                        setMyWatchlist(prev => prev.filter(w => w.id !== item.id))
+                      }} className="text-gray-400 hover:text-red-500 flex-shrink-0 transition-colors">
+                        <Trash2 className="h-4 w-4" />
                       </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Satın Aldıklarım */}
-      {purchases.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="flex items-center gap-3 p-5 border-b border-gray-50">
-            <ShoppingBag className="h-5 w-5 text-gray-400" />
-            <p className="font-semibold text-gray-900">Satın Aldıklarım</p>
-            <span className="ml-auto text-xs text-gray-400">{purchases.length} ürün</span>
-          </div>
-
-          <div className="divide-y divide-gray-50">
-            {purchases.map(item => {
-              const title = item.listing?.custom_title ?? item.listing?.product?.name ?? '—'
-              const img = item.listing?.photos?.[0] ?? item.listing?.product?.image_url
-              const alreadyRated = ratedListingIds.has(item.listing_id)
-
-              return (
-                <div key={item.id}>
-                  <div className="flex items-center gap-3 p-4">
-                    <div className="h-12 w-9 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                      {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
-                      <p className="text-sm font-bold text-gray-900 mt-0.5">
-                        {item.listing?.price.toLocaleString('tr-TR')} ₺
-                        {item.quantity > 1 && (
-                          <span className="text-xs text-gray-400 font-normal ml-1.5">× {item.quantity} adet</span>
-                        )}
-                      </p>
-                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </TabsContent>
 
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {/* Puan Ver / Puanlandı */}
-                      {alreadyRated ? (
-                        <span className="text-xs text-yellow-600 font-medium flex items-center gap-1 px-2">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          Puanlandı
+        {/* ── TEKLİFLER ── */}
+        <TabsContent value="teklifler" className="mt-3">
+          {offers.length === 0 ? (
+            <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center">
+              <Tag className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">Henüz teklif yok.</p>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-2 p-4 border-b border-gray-50">
+                <Tag className="h-4 w-4 text-gray-400" />
+                <p className="font-semibold text-gray-900 text-sm">Teklifler</p>
+                <span className="text-xs text-gray-400">({offers.length})</span>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {offers.map(offer => {
+                  const title = offer.listing?.custom_title ?? (offer.listing as { product?: { name: string } | null } | null)?.product?.name ?? '—'
+                  const img = (offer.listing as { product?: { image_url: string | null } | null } | null)?.product?.image_url
+                  const statusLabel: Record<string, string> = { pending: 'Bekliyor', accepted: 'Kabul Edildi', rejected: 'Reddedildi', withdrawn: 'Geri Çekildi' }
+                  const statusColor: Record<string, string> = { pending: 'bg-amber-50 text-amber-700 border-amber-200', accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200', rejected: 'bg-red-50 text-red-600 border-red-200', withdrawn: 'bg-gray-50 text-gray-500 border-gray-200' }
+                  return (
+                    <div key={offer.id} className="flex items-center gap-3 p-4">
+                      <div className="h-12 w-9 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
+                        {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-sm font-bold text-gray-900">{offer.amount.toLocaleString('tr-TR')} ₺</span>
+                          {offer.listing?.price && <span className="text-xs text-gray-400">/ {offer.listing.price.toLocaleString('tr-TR')} ₺</span>}
+                          {!offer.isMine && offer.buyer && <span className="text-xs text-gray-500">@{(offer.buyer as { username: string }).username}</span>}
+                          {offer.isMine && <span className="text-xs text-gray-400">Verdiğim teklif</span>}
+                        </div>
+                        {offer.message && <p className="text-xs text-gray-500 mt-0.5 truncate italic">{offer.message}</p>}
+                      </div>
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${statusColor[offer.status] ?? statusColor.pending}`}>
+                          {statusLabel[offer.status] ?? offer.status}
                         </span>
-                      ) : (
-                        <Sheet open={ratingId === item.listing_id} onOpenChange={open => { if (!open) setRatingId(null) }}>
-                          <SheetTrigger render={
-                            <button onClick={() => openRating(item.listing_id)}
-                              className="flex items-center gap-1 text-xs font-medium text-yellow-600 hover:text-yellow-700 px-2 py-1.5 rounded-xl hover:bg-yellow-50 transition-colors border border-yellow-200">
-                              <Star className="h-3.5 w-3.5" />
-                              Puan Ver
-                            </button>
-                          } />
-                          <SheetContent side="right" className="w-full sm:w-96 p-6 overflow-y-auto">
-                            <p className="font-semibold text-gray-900 mb-1">Satıcıyı Puanla</p>
-                            <p className="text-sm text-gray-500 mb-6">{title}</p>
-
-                            <div className="space-y-6">
-                              {/* Yıldız seçimi */}
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Genel Puan</p>
-                                <div className="flex items-center gap-2">
-                                  {[1, 2, 3, 4, 5].map(star => (
-                                    <button
-                                      key={star}
-                                      onClick={() => setRatingStars(star)}
-                                      onMouseEnter={() => setRatingHover(star)}
-                                      onMouseLeave={() => setRatingHover(0)}
-                                      className="transition-transform hover:scale-110"
-                                    >
-                                      <Star className={`h-9 w-9 transition-colors ${
-                                        star <= (ratingHover || ratingStars)
-                                          ? 'fill-yellow-400 text-yellow-400'
-                                          : 'text-gray-200'
-                                      }`} />
-                                    </button>
-                                  ))}
-                                  {ratingStars > 0 && (
-                                    <span className="text-sm text-gray-500 ml-1">
-                                      {['', 'Berbat', 'Kötü', 'İdare Eder', 'İyi', 'Mükemmel'][ratingStars]}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Etiketler */}
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                                  Öne Çıkan Özellikler <span className="normal-case font-normal">(isteğe bağlı)</span>
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {RATING_TAGS.map(tag => (
-                                    <button
-                                      key={tag}
-                                      onClick={() => toggleTag(tag)}
-                                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
-                                        ratingTags.includes(tag)
-                                          ? 'bg-yellow-50 border-yellow-400 text-yellow-700 font-medium'
-                                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                                      }`}
-                                    >
-                                      {ratingTags.includes(tag) && '✓ '}{tag}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Yorum */}
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                                  Yorum <span className="normal-case font-normal">(isteğe bağlı)</span>
-                                </p>
-                                <textarea
-                                  value={ratingComment}
-                                  onChange={e => setRatingComment(e.target.value)}
-                                  rows={3}
-                                  maxLength={300}
-                                  placeholder="Deneyimini paylaş..."
-                                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:border-primary"
-                                />
-                                <p className="text-xs text-gray-400 text-right mt-1">{ratingComment.length}/300</p>
-                              </div>
-
-                              <Button
-                                onClick={submitRating}
-                                disabled={submittingRating || ratingStars === 0}
-                                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl"
-                              >
-                                {submittingRating ? 'Gönderiliyor...' : 'Puanı Gönder'}
-                              </Button>
-                            </div>
-                          </SheetContent>
-                        </Sheet>
-                      )}
-
-                      {/* Ben satın almadım */}
-                      <button onClick={() => setDisclaimId(item.id)} title="Ben satın almadım"
-                        className="p-2 rounded-xl hover:bg-gray-50 text-gray-300 hover:text-red-400 transition-colors">
-                        <AlertCircle className="h-4 w-4" />
-                      </button>
+                        {!offer.isMine && offer.status === 'pending' && (
+                          <div className="flex gap-1">
+                            <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'accepted' }).eq('id', offer.id); setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'accepted' } : o)) }}
+                              className="text-[10px] px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-medium">Kabul</button>
+                            <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'rejected' }).eq('id', offer.id); setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'rejected' } : o)) }}
+                              className="text-[10px] px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-medium">Red</button>
+                          </div>
+                        )}
+                        {offer.isMine && offer.status === 'pending' && (
+                          <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'withdrawn' }).eq('id', offer.id); setOffers(prev => prev.filter(o => o.id !== offer.id)) }}
+                            className="text-[10px] text-gray-400 hover:text-red-500">Geri çek</button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </TabsContent>
 
-                  {disclaimId === item.id && (
-                    <div className="mx-4 mb-3 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3">
-                      <p className="text-sm text-amber-800 flex-1">Bu ürünü satın almadın mı?</p>
-                      <button onClick={() => disclaimPurchase(item.id)}
-                        className="text-xs font-semibold text-amber-700 hover:text-amber-800 px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 transition-colors whitespace-nowrap">
-                        Evet, Satın Almadım
-                      </button>
-                      <button onClick={() => setDisclaimId(null)} className="text-xs text-gray-500 hover:text-gray-700">İptal</button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      </Tabs>
     </div>
   )
 }
