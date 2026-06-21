@@ -6,7 +6,9 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import ConditionBadge from '@/components/shared/ConditionBadge'
 import MessageButton from '@/components/listing/MessageButton'
+import PriceHistoryChart from '@/components/shared/PriceHistoryChart'
 import type { Condition } from '@/types'
+import type { PricePoint } from '@/components/shared/PriceHistoryChart'
 
 interface SellerListing {
   id: string
@@ -31,9 +33,10 @@ interface Product {
 interface Props {
   product: Product
   listings: SellerListing[]
+  priceHistory: PricePoint[]
 }
 
-export default function KartDetailClient({ product, listings }: Props) {
+export default function KartDetailClient({ product, listings, priceHistory }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activePhoto, setActivePhoto] = useState<string | null>(null)
 
@@ -241,6 +244,15 @@ export default function KartDetailClient({ product, listings }: Props) {
             </div>
           )}
         </div>
+        {/* Fiyat Geçmişi */}
+        {priceHistory.length > 0 && (
+          <div className="mt-6 pt-5 border-t border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+              Fiyat Geçmişi
+            </h2>
+            <PriceHistoryChart data={priceHistory} />
+          </div>
+        )}
       </div>
     </div>
   )

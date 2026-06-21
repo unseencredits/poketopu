@@ -273,6 +273,7 @@ export default function ProfilPage() {
       buyer_id: soldOutside ? null : selectedBuyerId,
       quantity: soldQty,
       sold_outside: soldOutside,
+      price: listing.price,
     })
 
     const remaining = listing.quantity - soldQty

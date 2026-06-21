@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import KartDetailClient from './KartDetailClient'
 import type { Condition } from '@/types'
+import type { PricePoint } from '@/components/shared/PriceHistoryChart'
 
 interface PageProps {
   params: Promise<{ productId: string }>
@@ -23,22 +24,52 @@ export default async function KartPage({ params }: PageProps) {
   const { productId } = await params
   const supabase = await createClient()
 
-  const { data: product } = await supabase
-    .from('products')
-    .select('id, name, set_name, set_id, series, number, rarity, image_url, image_url_hires')
-    .eq('id', productId)
-    .single()
+  const [{ data: product }, { data: rawListings }, { data: allListings }] = await Promise.all([
+    supabase
+      .from('products')
+      .select('id, name, set_name, set_id, series, number, rarity, image_url, image_url_hires')
+      .eq('id', productId)
+      .single(),
+    supabase
+      .from('listings')
+      .select('id, price, condition, notes, photos, created_at, store:stores(id, name, slug, user_id)')
+      .eq('product_id', productId)
+      .eq('status', 'active')
+      .order('price', { ascending: true }),
+    supabase
+      .from('listings')
+      .select('id, price')
+      .eq('product_id', productId),
+  ])
 
   if (!product) notFound()
 
-  const { data: rawListings } = await supabase
-    .from('listings')
-    .select('id, price, condition, notes, photos, created_at, store:stores(id, name, slug, user_id)')
-    .eq('product_id', productId)
-    .eq('status', 'active')
-    .order('price', { ascending: true })
-
   const listings = (rawListings ?? []) as unknown as SellerListing[]
+
+  // Fiyat geçmişi: bu ürünle ilgili tüm satışlar
+  const listingIds = (allListings ?? []).map((l: { id: string }) => l.id)
+  let priceHistory: PricePoint[] = []
+
+  if (listingIds.length > 0) {
+    const { data: salesData } = await supabase
+      .from('sales')
+      .select('listing_id, created_at, price')
+      .in('listing_id', listingIds)
+      .eq('sold_outside', false)
+      .order('created_at', { ascending: true })
+      .limit(60)
+
+    const priceMap = Object.fromEntries(
+      (allListings ?? []).map((l: { id: string; price: number }) => [l.id, l.price])
+    )
+
+    priceHistory = (salesData ?? [])
+      .map((s: { listing_id: string; created_at: string; price: number | null }) => ({
+        date: s.created_at,
+        price: s.price ?? priceMap[s.listing_id] ?? null,
+      }))
+      .filter((p): p is PricePoint => p.price != null)
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -46,7 +77,7 @@ export default async function KartPage({ params }: PageProps) {
         <ChevronLeft className="h-4 w-4" /> Kartlar
       </Link>
 
-      <KartDetailClient product={product} listings={listings} />
+      <KartDetailClient product={product} listings={listings} priceHistory={priceHistory} />
     </div>
   )
 }
