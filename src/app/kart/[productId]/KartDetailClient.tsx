@@ -10,6 +10,7 @@ import PriceHistoryChart from '@/components/shared/PriceHistoryChart'
 import CollectionButton from '@/components/shared/CollectionButton'
 import WatchlistButton from '@/components/shared/WatchlistButton'
 import OfferButton from '@/components/listing/OfferButton'
+import GradingCalculator from '@/components/shared/GradingCalculator'
 import type { Condition } from '@/types'
 import type { PricePoint } from '@/components/shared/PriceHistoryChart'
 
@@ -268,6 +269,11 @@ export default function KartDetailClient({ product, listings, priceHistory }: Pr
             </h2>
             <PriceHistoryChart data={priceHistory} />
           </div>
+        )}
+
+        {/* Derece Değer Hesaplayıcısı */}
+        {listings.length > 0 && (
+          <GradingCalculator currentPrice={listings[0].price} />
         )}
       </div>
     </div>
