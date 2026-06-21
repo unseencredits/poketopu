@@ -8,6 +8,7 @@ import ConditionBadge from '@/components/shared/ConditionBadge'
 import MessageButton from '@/components/listing/MessageButton'
 import PriceHistoryChart from '@/components/shared/PriceHistoryChart'
 import CollectionButton from '@/components/shared/CollectionButton'
+import WatchlistButton from '@/components/shared/WatchlistButton'
 import type { Condition } from '@/types'
 import type { PricePoint } from '@/components/shared/PriceHistoryChart'
 
@@ -245,8 +246,11 @@ export default function KartDetailClient({ product, listings, priceHistory }: Pr
             </div>
           )}
         </div>
-        {/* Koleksiyona Ekle */}
-        <CollectionButton productId={product.id} />
+        {/* Koleksiyon + Takip butonları */}
+        <div className="flex flex-col gap-2">
+          <CollectionButton productId={product.id} />
+          <WatchlistButton productId={product.id} />
+        </div>
 
         {/* Fiyat Geçmişi */}
         {priceHistory.length > 0 && (

@@ -7,12 +7,20 @@ import Image from 'next/image'
 import {
   User, Store, Package, LogOut, ChevronRight, Plus,
   Pencil, Eye, EyeOff, Trash2, ImagePlus, X, Upload,
-  Banknote, ShoppingBag, AlertCircle, Star, ArrowRightLeft, BookMarked,
+  Banknote, ShoppingBag, AlertCircle, Star, ArrowRightLeft, BookMarked, Bell, BellRing,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
+
+interface WatchlistItem {
+  id: string
+  price_threshold: number | null
+  created_at: string
+  product: { id: string; name: string; set_name: string | null; image_url: string | null } | null
+  currentLowest?: number | null
+}
 
 interface CollectionItem {
   id: string
@@ -60,6 +68,7 @@ export default function ProfilPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [myTrades, setMyTrades] = useState<Trade[]>([])
   const [myCollections, setMyCollections] = useState<CollectionItem[]>([])
+  const [myWatchlist, setMyWatchlist] = useState<WatchlistItem[]>([])
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -141,6 +150,34 @@ export default function ProfilPage() {
         .order('created_at', { ascending: false })
         .limit(30)
       setMyTrades((trades as unknown as Trade[]) ?? [])
+
+      // Takip listem
+      const { data: wlData } = await supabase
+        .from('watchlists')
+        .select('id, price_threshold, created_at, product:products(id,name,set_name,image_url)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(30)
+
+      if (wlData && wlData.length > 0) {
+        const productIds = (wlData as WatchlistItem[]).map(w => w.product?.id).filter(Boolean) as string[]
+        const { data: minPrices } = await supabase
+          .from('listings')
+          .select('product_id, price')
+          .in('product_id', productIds)
+          .eq('status', 'active')
+          .order('price', { ascending: true })
+
+        const lowestByProduct: Record<string, number> = {}
+        for (const row of (minPrices ?? []) as { product_id: string; price: number }[]) {
+          if (!(row.product_id in lowestByProduct)) lowestByProduct[row.product_id] = row.price
+        }
+
+        setMyWatchlist((wlData as WatchlistItem[]).map(w => ({
+          ...w,
+          currentLowest: w.product?.id ? lowestByProduct[w.product.id] ?? null : null,
+        })))
+      }
 
       // Koleksiyonum
       const { data: colData } = await supabase
@@ -733,6 +770,62 @@ export default function ProfilPage() {
           </div>
         )}
       </div>
+
+      {/* Takip Listem */}
+      {myWatchlist.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-3 p-5 border-b border-gray-50">
+            <Bell className="h-5 w-5 text-gray-400" />
+            <p className="font-semibold text-gray-900">Takip Listem</p>
+            <span className="text-xs text-gray-400">{myWatchlist.length} kart</span>
+          </div>
+
+          <div className="divide-y divide-gray-50">
+            {myWatchlist.map(item => {
+              const name = item.product?.name ?? '—'
+              const img = item.product?.image_url
+              const alarmed = item.price_threshold != null && item.currentLowest != null && item.currentLowest <= item.price_threshold
+              return (
+                <div key={item.id} className="flex items-center gap-3 p-4">
+                  <div className="h-12 w-9 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
+                    {img && <img src={img} alt={name} className="h-full w-full object-contain" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{name}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {item.currentLowest != null && (
+                        <span className="text-xs text-gray-500">
+                          En düşük: <span className="font-semibold text-gray-800">{item.currentLowest.toLocaleString('tr-TR')} ₺</span>
+                        </span>
+                      )}
+                      {item.price_threshold != null && (
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                          alarmed
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}>
+                          {alarmed ? <BellRing className="h-2.5 w-2.5" /> : <Bell className="h-2.5 w-2.5" />}
+                          Alarm: {item.price_threshold.toLocaleString('tr-TR')} ₺
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const supabase = createClient()
+                      await supabase.from('watchlists').delete().eq('id', item.id)
+                      setMyWatchlist(prev => prev.filter(w => w.id !== item.id))
+                    }}
+                    className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Koleksiyonum */}
       {myCollections.length > 0 && (
