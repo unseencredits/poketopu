@@ -7,12 +7,28 @@ import Image from 'next/image'
 import {
   User, Store, Package, LogOut, ChevronRight, Plus,
   Pencil, Eye, EyeOff, Trash2, ImagePlus, X, Upload,
-  Banknote, ShoppingBag, AlertCircle, Star, ArrowRightLeft, BookMarked, Bell, BellRing,
+  Banknote, ShoppingBag, AlertCircle, Star, ArrowRightLeft, BookMarked, Bell, BellRing, Tag,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
+
+interface OfferItem {
+  id: string
+  amount: number
+  status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+  message: string | null
+  created_at: string
+  listing: {
+    id: string
+    price: number
+    custom_title: string | null
+    product?: { name: string; image_url: string | null } | null
+  } | null
+  buyer: { id: string; username: string } | null
+  isMine: boolean
+}
 
 interface TradeMatch {
   id: string
@@ -78,6 +94,7 @@ export default function ProfilPage() {
   const [myCollections, setMyCollections] = useState<CollectionItem[]>([])
   const [myWatchlist, setMyWatchlist] = useState<WatchlistItem[]>([])
   const [tradeMatches, setTradeMatches] = useState<TradeMatch[]>([])
+  const [offers, setOffers] = useState<OfferItem[]>([])
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -150,6 +167,34 @@ export default function ProfilPage() {
         .order('created_at', { ascending: false })
         .limit(20)
       setPurchases((mySales as unknown as Purchase[]) ?? [])
+
+      // Tekliflerim (verdiğim) + gelen teklifler (kendi ilanlarıma)
+      const [{ data: myOffers }, { data: receivedOffers }] = await Promise.all([
+        supabase
+          .from('offers')
+          .select('id, amount, status, message, created_at, listing:listings(id, price, custom_title, product:products(name, image_url))')
+          .eq('buyer_id', user.id)
+          .neq('status', 'withdrawn')
+          .order('created_at', { ascending: false })
+          .limit(10),
+
+        st ? supabase
+          .from('offers')
+          .select('id, amount, status, message, created_at, listing:listings(id, price, custom_title, product:products(name, image_url)), buyer:profiles(id, username)')
+          .in('listing_id',
+            await supabase.from('listings').select('id').eq('seller_id', st.id).then(r => (r.data ?? []).map((l: { id: string }) => l.id))
+          )
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(10)
+          : Promise.resolve({ data: [] }),
+      ])
+
+      const allOffers: OfferItem[] = [
+        ...(receivedOffers ?? []).map((o: Record<string, unknown>) => ({ ...(o as unknown as OfferItem), isMine: false })),
+        ...(myOffers ?? []).map((o: Record<string, unknown>) => ({ ...(o as unknown as OfferItem), isMine: true })),
+      ]
+      setOffers(allOffers)
 
       // Takaslarım
       const { data: trades } = await supabase
@@ -1029,6 +1074,99 @@ export default function ProfilPage() {
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Teklifler */}
+      {offers.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-3 p-5 border-b border-gray-50">
+            <Tag className="h-5 w-5 text-gray-400" />
+            <p className="font-semibold text-gray-900">Teklifler</p>
+            <span className="ml-auto text-xs text-gray-400">{offers.length} teklif</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {offers.map(offer => {
+              const title = offer.listing?.custom_title ?? (offer.listing as { product?: { name: string } | null } | null)?.product?.name ?? '—'
+              const img = (offer.listing as { product?: { image_url: string | null } | null } | null)?.product?.image_url
+              const statusLabel: Record<string, string> = {
+                pending: 'Bekliyor',
+                accepted: 'Kabul Edildi',
+                rejected: 'Reddedildi',
+                withdrawn: 'Geri Çekildi',
+              }
+              const statusColor: Record<string, string> = {
+                pending: 'bg-amber-50 text-amber-700 border-amber-200',
+                accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                rejected: 'bg-red-50 text-red-600 border-red-200',
+                withdrawn: 'bg-gray-50 text-gray-500 border-gray-200',
+              }
+              return (
+                <div key={offer.id} className="flex items-center gap-3 p-4">
+                  <div className="h-12 w-9 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
+                    {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-sm font-bold text-gray-900">{offer.amount.toLocaleString('tr-TR')} ₺</span>
+                      {offer.listing?.price && (
+                        <span className="text-xs text-gray-400">/ {offer.listing.price.toLocaleString('tr-TR')} ₺</span>
+                      )}
+                      {!offer.isMine && offer.buyer && (
+                        <span className="text-xs text-gray-500">@{(offer.buyer as { username: string }).username}</span>
+                      )}
+                      {offer.isMine && <span className="text-xs text-gray-400">Verdiğim teklif</span>}
+                    </div>
+                    {offer.message && (
+                      <p className="text-xs text-gray-500 mt-0.5 truncate italic">{offer.message}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${statusColor[offer.status] ?? statusColor.pending}`}>
+                      {statusLabel[offer.status] ?? offer.status}
+                    </span>
+                    {!offer.isMine && offer.status === 'pending' && (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={async () => {
+                            const supabase = createClient()
+                            await supabase.from('offers').update({ status: 'accepted' }).eq('id', offer.id)
+                            setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'accepted' } : o))
+                          }}
+                          className="text-[10px] px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-medium"
+                        >
+                          Kabul
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const supabase = createClient()
+                            await supabase.from('offers').update({ status: 'rejected' }).eq('id', offer.id)
+                            setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'rejected' } : o))
+                          }}
+                          className="text-[10px] px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-medium"
+                        >
+                          Red
+                        </button>
+                      </div>
+                    )}
+                    {offer.isMine && offer.status === 'pending' && (
+                      <button
+                        onClick={async () => {
+                          const supabase = createClient()
+                          await supabase.from('offers').update({ status: 'withdrawn' }).eq('id', offer.id)
+                          setOffers(prev => prev.filter(o => o.id !== offer.id))
+                        }}
+                        className="text-[10px] text-gray-400 hover:text-red-500"
+                      >
+                        Geri çek
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })}

@@ -9,6 +9,7 @@ import MessageButton from '@/components/listing/MessageButton'
 import PriceHistoryChart from '@/components/shared/PriceHistoryChart'
 import CollectionButton from '@/components/shared/CollectionButton'
 import WatchlistButton from '@/components/shared/WatchlistButton'
+import OfferButton from '@/components/listing/OfferButton'
 import type { Condition } from '@/types'
 import type { PricePoint } from '@/components/shared/PriceHistoryChart'
 
@@ -233,13 +234,20 @@ export default function KartDetailClient({ product, listings, priceHistory }: Pr
                     <p className="text-xl font-bold text-gray-900">
                       {listing.price.toLocaleString('tr-TR')} ₺
                     </p>
-                    {listing.store && (
-                      <MessageButton
+                    <div className="flex items-center gap-1.5">
+                      <OfferButton
                         listingId={listing.id}
-                        sellerId={listing.store.user_id}
-                        compact
+                        sellerId={listing.store?.user_id ?? ''}
+                        listingPrice={listing.price}
                       />
-                    )}
+                      {listing.store && (
+                        <MessageButton
+                          listingId={listing.id}
+                          sellerId={listing.store.user_id}
+                          compact
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
