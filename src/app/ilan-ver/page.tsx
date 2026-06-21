@@ -202,6 +202,7 @@ export default function IlanVerPage() {
           {step === 'details' && data.category && (
             <DetailsStep
               category={data.category}
+              productId={data.card?.id}
               onNext={details => {
                 setData(d => ({ ...d, ...details }))
                 setStep('photos')

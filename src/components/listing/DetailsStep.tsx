@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,8 +9,17 @@ import { CONDITIONS, type Condition, type Category } from '@/types'
 const GRADERS = ['PSA', 'BGS', 'CGC', 'SGC', 'GMA', 'ACE']
 const GRADES = [10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5, 6, 5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1]
 
+interface RefPrices {
+  cmAvg: number | null
+  cmTrend: number | null
+  tcgMarket: number | null
+  tcgVariant: string | null
+  updatedAt: string | null
+}
+
 interface Props {
   category: Category
+  productId?: string
   onNext: (data: {
     condition?: Condition
     grader?: string
@@ -21,7 +30,7 @@ interface Props {
   }) => void
 }
 
-export default function DetailsStep({ category, onNext }: Props) {
+export default function DetailsStep({ category, productId, onNext }: Props) {
   const isGraded = category === 'graded'
   const needsCondition = category === 'card'
 
@@ -31,6 +40,33 @@ export default function DetailsStep({ category, onNext }: Props) {
   const [price, setPrice] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [notes, setNotes] = useState('')
+  const [refPrices, setRefPrices] = useState<RefPrices | null>(null)
+
+  useEffect(() => {
+    if (!productId) return
+    fetch(`https://api.pokemontcg.io/v2/cards/${productId}?select=tcgplayer,cardmarket`)
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json?.data) return
+        const cm = json.data.cardmarket?.prices
+        const tcg = json.data.tcgplayer?.prices
+        // TCGPlayer'da en alakalı variant'ı seç (holofoil > normal > ilk variant)
+        const tcgEntry = tcg
+          ? (tcg.holofoil ?? tcg.normal ?? Object.values(tcg)[0] ?? null) as { market: number } | null
+          : null
+        const tcgVariant = tcg
+          ? (tcg.holofoil ? 'Holofoil' : tcg.normal ? 'Normal' : Object.keys(tcg)[0] ?? null)
+          : null
+        setRefPrices({
+          cmAvg: cm?.averageSellPrice ?? null,
+          cmTrend: cm?.trendPrice ?? null,
+          tcgMarket: tcgEntry?.market ?? null,
+          tcgVariant,
+          updatedAt: json.data.cardmarket?.updatedAt ?? json.data.tcgplayer?.updatedAt ?? null,
+        })
+      })
+      .catch(() => {})
+  }, [productId])
 
   const canSubmit = price && Number(price) > 0
     && (!needsCondition || condition)
@@ -124,6 +160,33 @@ export default function DetailsStep({ category, onNext }: Props) {
               </div>
             </div>
           </>
+        )}
+
+        {/* Referans Fiyatlar */}
+        {refPrices && (refPrices.cmAvg || refPrices.tcgMarket) && (
+          <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 space-y-1.5">
+            <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wide">Referans Fiyatlar</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {refPrices.cmAvg != null && (
+                <div className="text-sm">
+                  <span className="text-gray-500">Cardmarket ort. </span>
+                  <span className="font-bold text-gray-900">{refPrices.cmAvg.toFixed(2)} €</span>
+                  {refPrices.cmTrend != null && (
+                    <span className="text-gray-400 text-xs ml-1">/ trend {refPrices.cmTrend.toFixed(2)} €</span>
+                  )}
+                </div>
+              )}
+              {refPrices.tcgMarket != null && (
+                <div className="text-sm">
+                  <span className="text-gray-500">TCGPlayer {refPrices.tcgVariant} </span>
+                  <span className="font-bold text-gray-900">${refPrices.tcgMarket.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+            {refPrices.updatedAt && (
+              <p className="text-[10px] text-blue-400">Güncelleme: {refPrices.updatedAt}</p>
+            )}
+          </div>
         )}
 
         {/* Fiyat */}
