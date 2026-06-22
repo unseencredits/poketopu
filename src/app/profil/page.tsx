@@ -8,7 +8,7 @@ import {
   User, Store, Package, LogOut, ChevronRight, Plus,
   Pencil, Eye, EyeOff, Trash2, ImagePlus, X, Upload,
   Banknote, ShoppingBag, AlertCircle, Star, ArrowRightLeft, BookMarked, Bell, BellRing, Tag,
-  CheckCircle, MessageCircle,
+  CheckCircle, MessageCircle, RefreshCw,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { compressImage } from '@/lib/compress-image'
@@ -449,6 +449,16 @@ export default function ProfilPage() {
     }
   }
 
+  async function refreshListing(listingId: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('listings')
+      .update({ status: 'active', refreshed_at: new Date().toISOString() })
+      .eq('id', listingId)
+    if (!error) {
+      setListings(prev => prev.map(l => l.id === listingId ? { ...l, status: 'active' as ListingStatus } : l))
+    }
+  }
+
   // ─── Delete ──────────────────────────────────────────────────────────────────
 
   async function deleteListing(listingId: string) {
@@ -616,7 +626,7 @@ export default function ProfilPage() {
 
   const activeCount = listings.filter(l => l.status === 'active').length
   const soldCount = listings.filter(l => l.status === 'sold' && !l.sold_outside).length
-  const pausedCount = listings.filter(l => l.status === 'reserved').length
+  const pausedCount = listings.filter(l => l.status === 'reserved' || l.status === 'paused').length
 
   const editingListing = listings.find(l => l.id === editingId)
   const soldModalListing = listings.find(l => l.id === soldModalId)
@@ -731,6 +741,7 @@ export default function ProfilPage() {
               const title = listing.custom_title ?? (listing as Listing & { product?: { name: string } }).product?.name ?? '—'
               const img = listing.photos?.[0] ?? (listing as Listing & { product?: { image_url: string | null } }).product?.image_url
               const isPaused = listing.status === 'reserved'
+              const isAutoPaused = listing.status === 'paused'
               const isSold = listing.status === 'sold'
               const isDelConfirm = confirmDeleteId === listing.id
 
@@ -747,12 +758,14 @@ export default function ProfilPage() {
                           listing.status === 'active' ? 'bg-green-50 text-green-700' :
                           listing.status === 'sold' ? 'bg-gray-100 text-gray-500' :
                           listing.status === 'reserved' ? 'bg-orange-50 text-orange-600' :
+                          listing.status === 'paused' ? 'bg-amber-50 text-amber-700' :
                           'bg-gray-50 text-gray-400'
                         }`}>
                           {listing.status === 'active' ? 'Aktif' :
                            listing.status === 'sold'
                              ? (listing.sold_outside ? 'Satıldı (Dışarıda)' : 'Satıldı')
-                             : listing.status === 'reserved' ? 'Yayından Kaldırıldı' : '—'}
+                             : listing.status === 'reserved' ? 'Yayından Kaldırıldı'
+                             : listing.status === 'paused' ? 'Süresi Doldu' : '—'}
                         </span>
                         {listing.quantity > 1 && (
                           <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full font-medium">
@@ -936,11 +949,21 @@ export default function ProfilPage() {
                           </Sheet>
                         )}
 
+                        {/* Süresi dolmuş ilan: Yenile */}
+                        {isAutoPaused && (
+                          <button onClick={() => refreshListing(listing.id)} title="30 Gün Uzat"
+                            className="p-2 rounded-xl hover:bg-amber-50 text-amber-500 hover:text-amber-700 transition-colors">
+                            <RefreshCw className="h-4 w-4" />
+                          </button>
+                        )}
+
                         {/* Yayından kaldır / Aktif et */}
-                        <button onClick={() => toggleStatus(listing)} title={isPaused ? 'Tekrar Yayınla' : 'Yayından Kaldır'}
-                          className={`p-2 rounded-xl hover:bg-gray-50 transition-colors ${isPaused ? 'text-orange-400 hover:text-green-500' : 'text-gray-400 hover:text-orange-500'}`}>
-                          {isPaused ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                        </button>
+                        {!isAutoPaused && (
+                          <button onClick={() => toggleStatus(listing)} title={isPaused ? 'Tekrar Yayınla' : 'Yayından Kaldır'}
+                            className={`p-2 rounded-xl hover:bg-gray-50 transition-colors ${isPaused ? 'text-orange-400 hover:text-green-500' : 'text-gray-400 hover:text-orange-500'}`}>
+                            {isPaused ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          </button>
+                        )}
 
                         {/* Sil */}
                         <button onClick={() => setConfirmDeleteId(listing.id)} title="Sil"

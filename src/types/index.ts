@@ -1,6 +1,6 @@
 export type Condition = 'NM' | 'LP' | 'MP' | 'HP' | 'D'
 export type Category = 'card' | 'sealed' | 'accessory' | 'graded'
-export type ListingStatus = 'active' | 'sold' | 'reserved' | 'deleted'
+export type ListingStatus = 'active' | 'sold' | 'reserved' | 'deleted' | 'paused'
 
 export const CONDITIONS: Record<Condition, { label: string; stars: number; color: string }> = {
   NM: { label: 'Near Mint', stars: 5, color: 'text-green-600' },
