@@ -31,7 +31,7 @@ const NAV_LINKS = [
   { href: '/ara?kategori=graded', label: 'Graded' },
   { href: '/ara?kategori=accessory', label: 'Aksesuar' },
   { href: '/takas',               label: 'Takas' },
-  { href: '/turnuva',             label: 'Turnuva' },
+  { href: '/etkinlikler',         label: 'Etkinlikler' },
 ]
 
 export default function Header() {
@@ -378,7 +378,7 @@ export default function Header() {
 
       {/* Mobil slide-in menü */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 sm:hidden">
+        <div className="fixed inset-0 z-[60] sm:hidden">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <div className="absolute top-0 left-0 bottom-0 w-72 bg-white shadow-xl flex flex-col">
             <div className="flex items-center justify-between px-5 h-14 border-b border-gray-100">
