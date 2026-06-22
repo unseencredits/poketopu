@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Search, MessageCircle, User, Plus, Loader2, Menu, X, ChevronRight, Bell, Tag, ArrowLeftRight, CheckCircle, XCircle, ArrowRightLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +37,19 @@ const NAV_LINKS = [
 export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  function isActive(href: string) {
+    const [path, qs] = href.split('?')
+    if (!qs) return pathname === path || (path !== '/' && pathname.startsWith(path))
+    if (pathname !== path) return false
+    const params = new URLSearchParams(qs)
+    for (const [key, val] of params.entries()) {
+      if (searchParams.get(key) !== val) return false
+    }
+    return true
+  }
+
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [unread, setUnread] = useState(0)
@@ -361,16 +374,13 @@ export default function Header() {
         <nav className="border-t border-gray-100 bg-white hidden sm:block">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="flex gap-5 h-9 items-center text-sm">
-              {NAV_LINKS.map(({ href, label }) => {
-                const isActive = pathname === href || (href !== '/' && pathname.startsWith(href.split('?')[0]))
-                return (
-                  <Link key={href} href={href}
-                    className={`transition-colors font-medium ${isActive ? 'text-primary' : 'text-gray-500 hover:text-gray-900'}`}
-                  >
-                    {label}
-                  </Link>
-                )
-              })}
+              {NAV_LINKS.map(({ href, label }) => (
+                <Link key={href} href={href}
+                  className={`transition-colors font-medium ${isActive(href) ? 'text-primary' : 'text-gray-500 hover:text-gray-900'}`}
+                >
+                  {label}
+                </Link>
+              ))}
             </div>
           </div>
         </nav>
