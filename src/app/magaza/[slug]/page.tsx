@@ -120,8 +120,8 @@ export default async function MagazaPage({ params }: { params: Promise<{ slug: s
                 <span className="bg-white/20 text-white text-xs px-2 py-0.5 rounded-full font-medium">✓ Onaylı</span>
               )}
               {isTrustedSeller && (
-                <span className="bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 text-xs px-2.5 py-0.5 rounded-full font-medium">
-                  🛡️ Güvenilir Satıcı
+                <span className="bg-white/15 text-white/80 border border-white/20 text-xs px-2.5 py-0.5 rounded-full font-medium">
+                  Aktif Satıcı
                 </span>
               )}
             </div>
