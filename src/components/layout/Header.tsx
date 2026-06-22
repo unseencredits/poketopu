@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Search, MessageCircle, User, Plus, Loader2, Menu, X, ChevronRight, Bell, Tag } from 'lucide-react'
+import { Search, MessageCircle, User, Plus, Loader2, Menu, X, ChevronRight, Bell, Tag, ArrowLeftRight, CheckCircle, XCircle, ArrowRightLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useState, useEffect, useRef } from 'react'
@@ -10,19 +10,28 @@ import { createClient } from '@/lib/supabase/client'
 
 interface NotifItem {
   id: string
-  amount: number
+  type: 'offer_received' | 'offer_countered' | 'offer_accepted' | 'offer_rejected' | 'trade_match'
+  title: string
+  body: string | null
+  is_read: boolean
   created_at: string
-  listingTitle: string
-  buyerUsername: string
+}
+
+const NOTIF_ICON: Record<string, { icon: React.ReactNode; bg: string }> = {
+  offer_received:  { icon: <Tag className="h-4 w-4 text-amber-600" />,        bg: 'bg-amber-50' },
+  offer_countered: { icon: <ArrowLeftRight className="h-4 w-4 text-blue-600" />, bg: 'bg-blue-50' },
+  offer_accepted:  { icon: <CheckCircle className="h-4 w-4 text-emerald-600" />, bg: 'bg-emerald-50' },
+  offer_rejected:  { icon: <XCircle className="h-4 w-4 text-red-500" />,        bg: 'bg-red-50' },
+  trade_match:     { icon: <ArrowRightLeft className="h-4 w-4 text-violet-600" />, bg: 'bg-violet-50' },
 }
 
 const NAV_LINKS = [
-  { href: '/kartlar',            label: 'Kartlar' },
+  { href: '/kartlar',             label: 'Kartlar' },
   { href: '/ara?kategori=sealed', label: 'Sealed' },
   { href: '/ara?kategori=graded', label: 'Graded' },
   { href: '/ara?kategori=accessory', label: 'Aksesuar' },
-  { href: '/takas',              label: 'Takas' },
-  { href: '/turnuva',            label: 'Turnuva' },
+  { href: '/takas',               label: 'Takas' },
+  { href: '/turnuva',             label: 'Turnuva' },
 ]
 
 export default function Header() {
@@ -32,86 +41,35 @@ export default function Header() {
   const [searching, setSearching] = useState(false)
   const [unread, setUnread] = useState(0)
   const [mobileOpen, setMobileOpen] = useState(false)
+
   const [notifs, setNotifs] = useState<NotifItem[]>([])
-  const [notifNew, setNotifNew] = useState(0)
+  const [notifUnread, setNotifUnread] = useState(0)
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
+  const currentUidRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [pathname])
+  useEffect(() => { setMobileOpen(false) }, [pathname])
 
+  // ── Mesaj okunmamış sayısı ──────────────────────────────────────────────
   useEffect(() => {
     const supabase = createClient()
 
     async function loadUnread(uid: string) {
       const { data: convs } = await supabase
-        .from('conversations')
-        .select('id')
+        .from('conversations').select('id')
         .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`)
-
       const convIds = (convs ?? []).map((c: { id: string }) => c.id)
       if (!convIds.length) { setUnread(0); return }
-
       const { count } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_read', false)
-        .neq('sender_id', uid)
-        .in('conversation_id', convIds)
-
+        .from('messages').select('*', { count: 'exact', head: true })
+        .eq('is_read', false).neq('sender_id', uid).in('conversation_id', convIds)
       setUnread(count ?? 0)
-    }
-
-    async function loadNotifs(uid: string) {
-      const { data: storeRow } = await supabase
-        .from('stores')
-        .select('id')
-        .eq('user_id', uid)
-        .maybeSingle()
-      if (!storeRow) return
-
-      const { data: listingIds } = await supabase
-        .from('listings')
-        .select('id')
-        .eq('store_id', storeRow.id)
-      const ids = (listingIds ?? []).map((l: { id: string }) => l.id)
-      if (!ids.length) return
-
-      const { data: rows } = await supabase
-        .from('offers')
-        .select('id, amount, created_at, listing:listings(custom_title, product:products(name)), buyer:profiles(username)')
-        .in('listing_id', ids)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(6)
-
-      const items: NotifItem[] = (rows ?? []).map((r) => {
-        const row = r as unknown as {
-          id: string; amount: number; created_at: string;
-          listing: { custom_title: string | null; product: { name: string } | null } | null;
-          buyer: { username: string } | null;
-        }
-        return {
-          id: row.id,
-          amount: row.amount,
-          created_at: row.created_at,
-          listingTitle: row.listing?.custom_title ?? row.listing?.product?.name ?? 'İlan',
-          buyerUsername: row.buyer?.username ?? '?',
-        }
-      })
-      setNotifs(items)
-
-      const seenAt = parseInt(localStorage.getItem('notif_seen') || '0')
-      const newCount = items.filter(i => new Date(i.created_at).getTime() > seenAt).length
-      setNotifNew(newCount)
     }
 
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       loadUnread(user.id)
-      loadNotifs(user.id)
     }
 
     init()
@@ -138,25 +96,80 @@ export default function Header() {
     return () => window.removeEventListener('unread-refresh', refresh)
   }, [])
 
+  // ── Bildirimler ─────────────────────────────────────────────────────────
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    const supabase = createClient()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    async function loadNotifs(uid: string) {
+      const { data } = await supabase
+        .from('notifications')
+        .select('id, type, title, body, is_read, created_at')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      const rows = (data ?? []) as NotifItem[]
+      setNotifs(rows)
+      setNotifUnread(rows.filter(n => !n.is_read).length)
+    }
+
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      currentUidRef.current = user.id
+      await loadNotifs(user.id)
+
+      // Realtime: yeni bildirim gelince badge'i artır
+      channel = supabase
+        .channel(`notifs:${user.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        }, (payload) => {
+          const n = payload.new as NotifItem
+          setNotifs(prev => [n, ...prev].slice(0, 10))
+          setNotifUnread(prev => prev + 1)
+        })
+        .subscribe()
+    }
+
+    init()
+    return () => { if (channel) supabase.removeChannel(channel) }
+  }, [])
+
+  // Dropdown dışına tıklayınca kapat
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', onOutside)
+    return () => document.removeEventListener('mousedown', onOutside)
   }, [])
 
-  function openNotifPanel() {
-    setNotifOpen(v => !v)
-    if (!notifOpen) {
-      const now = Date.now()
-      localStorage.setItem('notif_seen', String(now))
-      setNotifNew(0)
+  async function openNotifPanel() {
+    const opening = !notifOpen
+    setNotifOpen(opening)
+    if (opening && notifUnread > 0) {
+      // Tüm bildirimleri okundu yap
+      setNotifUnread(0)
+      setNotifs(prev => prev.map(n => ({ ...n, is_read: true })))
+      const uid = currentUidRef.current
+      if (uid) {
+        const supabase = createClient()
+        await supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('user_id', uid)
+          .eq('is_read', false)
+      }
     }
   }
 
+  // ── Arama ──────────────────────────────────────────────────────────────
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     const q = query.trim()
@@ -171,22 +184,11 @@ export default function Header() {
         const username = q.slice(1).trim()
         if (username) {
           const { data: prof } = await supabase
-            .from('profiles')
-            .select('id')
-            .ilike('username', username)
-            .maybeSingle()
-
+            .from('profiles').select('id').ilike('username', username).maybeSingle()
           if (prof) {
             const { data: st } = await supabase
-              .from('stores')
-              .select('slug')
-              .eq('user_id', prof.id)
-              .maybeSingle()
-            if (st) {
-              router.push(`/magaza/${st.slug}`)
-              setQuery('')
-              return
-            }
+              .from('stores').select('slug').eq('user_id', prof.id).maybeSingle()
+            if (st) { router.push(`/magaza/${st.slug}`); setQuery(''); return }
           }
         }
         router.push(`/ara?q=${encodeURIComponent(q)}`)
@@ -194,33 +196,14 @@ export default function Header() {
       }
 
       const [{ data: setRows }, { data: seriesRows }] = await Promise.all([
-        supabase
-          .from('products')
-          .select('set_id, set_name')
-          .ilike('set_name', `%${q}%`)
-          .limit(5),
-        supabase
-          .from('products')
-          .select('series')
-          .ilike('series', `%${q}%`)
-          .not('series', 'is', null)
-          .limit(1),
+        supabase.from('products').select('set_id, set_name').ilike('set_name', `%${q}%`).limit(5),
+        supabase.from('products').select('series').ilike('series', `%${q}%`).not('series', 'is', null).limit(1),
       ])
 
       const exactSet = setRows?.find(s => s.set_name?.toLowerCase() === q.toLowerCase())
       const setMatch = exactSet ?? setRows?.[0]
-
-      if (setMatch?.set_id) {
-        router.push(`/kartlar?set_id=${encodeURIComponent(setMatch.set_id)}`)
-        setQuery('')
-        return
-      }
-
-      if (seriesRows?.[0]?.series) {
-        router.push(`/kartlar?seri=${encodeURIComponent(seriesRows[0].series)}`)
-        setQuery('')
-        return
-      }
+      if (setMatch?.set_id) { router.push(`/kartlar?set_id=${encodeURIComponent(setMatch.set_id)}`); setQuery(''); return }
+      if (seriesRows?.[0]?.series) { router.push(`/kartlar?seri=${encodeURIComponent(seriesRows[0].series)}`); setQuery(''); return }
 
       router.push(`/ara?q=${encodeURIComponent(q)}`)
       setQuery('')
@@ -285,9 +268,9 @@ export default function Header() {
                   aria-label="Bildirimler"
                 >
                   <Bell className="h-5 w-5" />
-                  {notifNew > 0 && (
+                  {notifUnread > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                      {notifNew > 9 ? '9+' : notifNew}
+                      {notifUnread > 9 ? '9+' : notifUnread}
                     </span>
                   )}
                 </Button>
@@ -295,36 +278,42 @@ export default function Header() {
                 {notifOpen && (
                   <div className="absolute right-0 top-11 w-80 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
                     <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">Bekleyen Teklifler</p>
+                      <p className="text-sm font-semibold text-gray-900">Bildirimler</p>
                       <Link href="/profil" onClick={() => setNotifOpen(false)} className="text-xs text-primary hover:underline">
-                        Tümünü gör
+                        Profile git
                       </Link>
                     </div>
                     {notifs.length === 0 ? (
-                      <div className="px-4 py-6 text-center text-sm text-gray-400">Bekleyen teklif yok</div>
+                      <div className="px-4 py-8 text-center text-sm text-gray-400">Bildirim yok</div>
                     ) : (
-                      <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
-                        {notifs.map(n => (
-                          <Link
-                            key={n.id}
-                            href="/profil"
-                            onClick={() => setNotifOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="h-8 w-8 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-                              <Tag className="h-4 w-4 text-amber-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-gray-900 truncate">{n.listingTitle}</p>
-                              <p className="text-xs text-gray-500">
-                                @{n.buyerUsername} — <span className="font-semibold text-gray-700">{n.amount.toLocaleString('tr-TR')} ₺</span>
-                              </p>
-                            </div>
-                            <span className="text-[10px] text-gray-400 flex-shrink-0">
-                              {new Date(n.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
-                            </span>
-                          </Link>
-                        ))}
+                      <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                        {notifs.map(n => {
+                          const meta = NOTIF_ICON[n.type] ?? NOTIF_ICON.offer_received
+                          return (
+                            <Link
+                              key={n.id}
+                              href="/profil"
+                              onClick={() => setNotifOpen(false)}
+                              className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-primary/[0.03]' : ''}`}
+                            >
+                              <div className={`h-8 w-8 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                {meta.icon}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-xs truncate ${!n.is_read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
+                                  {n.title}
+                                </p>
+                                {n.body && <p className="text-xs text-gray-500 truncate mt-0.5">{n.body}</p>}
+                                <p className="text-[10px] text-gray-400 mt-0.5">
+                                  {new Date(n.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                              {!n.is_read && (
+                                <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-2" />
+                              )}
+                            </Link>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -375,14 +364,8 @@ export default function Header() {
               {NAV_LINKS.map(({ href, label }) => {
                 const isActive = pathname === href || (href !== '/' && pathname.startsWith(href.split('?')[0]))
                 return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={`transition-colors font-medium ${
-                      isActive
-                        ? 'text-primary'
-                        : 'text-gray-500 hover:text-gray-900'
-                    }`}
+                  <Link key={href} href={href}
+                    className={`transition-colors font-medium ${isActive ? 'text-primary' : 'text-gray-500 hover:text-gray-900'}`}
                   >
                     {label}
                   </Link>
@@ -396,48 +379,35 @@ export default function Header() {
       {/* Mobil slide-in menü */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 sm:hidden">
-          {/* Overlay */}
-          <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-            onClick={() => setMobileOpen(false)}
-          />
-          {/* Drawer */}
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <div className="absolute top-0 left-0 bottom-0 w-72 bg-white shadow-xl flex flex-col">
-            {/* Drawer header */}
             <div className="flex items-center justify-between px-5 h-14 border-b border-gray-100">
               <span className="text-lg font-bold text-primary">poketopu</span>
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-gray-50 text-gray-400"
-              >
+              <button onClick={() => setMobileOpen(false)} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-gray-50 text-gray-400">
                 <X className="h-4 w-4" />
               </button>
             </div>
-
-            {/* Nav linkleri */}
             <nav className="flex-1 py-3 overflow-y-auto">
               {NAV_LINKS.map(({ href, label }) => (
-                <Link
-                  key={href}
-                  href={href}
+                <Link key={href} href={href}
                   className="flex items-center justify-between px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
                 >
                   {label}
                   <ChevronRight className="h-4 w-4 text-gray-300" />
                 </Link>
               ))}
-
               <div className="mx-4 my-3 border-t border-gray-100" />
-
-              <Link
-                href="/profil"
+              <Link href="/profil"
                 className="flex items-center justify-between px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
               >
                 Profilim
-                <ChevronRight className="h-4 w-4 text-gray-300" />
+                {notifUnread > 0 && (
+                  <span className="h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {notifUnread > 9 ? '9+' : notifUnread}
+                  </span>
+                )}
               </Link>
-              <Link
-                href="/mesajlar"
+              <Link href="/mesajlar"
                 className="flex items-center justify-between px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
               >
                 Mesajlar
@@ -448,8 +418,6 @@ export default function Header() {
                 )}
               </Link>
             </nav>
-
-            {/* İlan ver butonu */}
             <div className="p-4 border-t border-gray-100">
               <Link href="/ilan-ver" onClick={() => setMobileOpen(false)}>
                 <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl gap-2">
