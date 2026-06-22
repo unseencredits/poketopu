@@ -36,6 +36,9 @@ async function getCardProducts(sp: Record<string, string>): Promise<{ products: 
   if (sp.kondisyon) query = query.eq('condition', sp.kondisyon as Condition)
   if (sp.min) query = query.gte('price', Number(sp.min))
   if (sp.max) query = query.lte('price', Number(sp.max))
+  if (sp.sehir) query = query.ilike('city', `%${sp.sehir}%`)
+  if (sp.teslimat === 'kargo') query = query.in('shipping', ['kargo', 'her_ikisi'])
+  if (sp.teslimat === 'elden') query = query.in('shipping', ['elden', 'her_ikisi'])
 
   if (sp.q) {
     const { data: matchedProds } = await supabase
@@ -89,6 +92,9 @@ async function getListings(sp: Record<string, string>, excludeCards = false): Pr
   if (sp.puan_max) query = query.lte('grade', Number(sp.puan_max))
   if (sp.min) query = query.gte('price', Number(sp.min))
   if (sp.max) query = query.lte('price', Number(sp.max))
+  if (sp.sehir) query = query.ilike('city', `%${sp.sehir}%`)
+  if (sp.teslimat === 'kargo') query = query.in('shipping', ['kargo', 'her_ikisi'])
+  if (sp.teslimat === 'elden') query = query.in('shipping', ['elden', 'her_ikisi'])
 
   // Set filtresi: ürün tablosu üzerinden filtrele
   if (sp.set_id) {

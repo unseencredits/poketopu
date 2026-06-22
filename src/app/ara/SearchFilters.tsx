@@ -34,7 +34,7 @@ export default function SearchFilters() {
     update(key, params.get(key) === value ? null : value)
   }, [params, update])
 
-  const hasFilters = ['kategori','kondisyon','min','max','derecelendiren','puan_min','puan_max'].some(k => params.has(k))
+  const hasFilters = ['kategori','kondisyon','min','max','derecelendiren','puan_min','puan_max','sehir','teslimat'].some(k => params.has(k))
 
   return (
     <div className="space-y-6">
@@ -154,6 +154,41 @@ export default function SearchFilters() {
           </div>
         </div>
       )}
+
+      {/* Teslimat */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Teslimat</p>
+        <div className="space-y-1">
+          {[
+            { value: 'kargo', label: 'Kargo ile' },
+            { value: 'elden', label: 'Elden teslim' },
+          ].map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => toggle('teslimat', opt.value)}
+              className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ${
+                params.get('teslimat') === opt.value
+                  ? 'bg-red-50 text-primary font-medium'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Şehir */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Şehir</p>
+        <Input
+          type="text"
+          placeholder="İstanbul, Ankara..."
+          defaultValue={params.get('sehir') ?? ''}
+          onBlur={e => update('sehir', e.target.value || null)}
+          className="h-9 text-sm"
+        />
+      </div>
 
       {/* Fiyat */}
       <div>
