@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import Image from 'next/image'
 import { Upload, X, GripVertical, ImagePlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { compressImage } from '@/lib/compress-image'
 
 const MAX_PHOTOS = 4
 
@@ -28,9 +29,9 @@ export default function PhotoUploadStep({ userId, onNext }: Props) {
 
     const uploaded: string[] = []
     for (const file of newFiles) {
-      const ext = file.name.split('.').pop()
-      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { data, error } = await supabase.storage.from('listings').upload(path, file)
+      const blob = await compressImage(file)
+      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+      const { data, error } = await supabase.storage.from('listings').upload(path, blob, { contentType: 'image/jpeg' })
       if (!error && data) {
         const { data: { publicUrl } } = supabase.storage.from('listings').getPublicUrl(data.path)
         uploaded.push(publicUrl)

@@ -11,6 +11,7 @@ import {
   CheckCircle, MessageCircle,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { compressImage } from '@/lib/compress-image'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -424,9 +425,9 @@ export default function ProfilPage() {
     const uploaded: string[] = []
 
     for (const file of newFiles) {
-      const ext = file.name.split('.').pop()
-      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { data, error } = await supabase.storage.from('listings').upload(path, file)
+      const blob = await compressImage(file)
+      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+      const { data, error } = await supabase.storage.from('listings').upload(path, blob, { contentType: 'image/jpeg' })
       if (!error && data) {
         const { data: { publicUrl } } = supabase.storage.from('listings').getPublicUrl(data.path)
         uploaded.push(publicUrl)
