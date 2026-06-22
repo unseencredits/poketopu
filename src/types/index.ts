@@ -77,6 +77,9 @@ export interface Listing {
   grade: number | null
   sold_to_user_id: string | null
   sold_outside: boolean
+  city: string | null
+  shipping: 'kargo' | 'elden' | 'her_ikisi' | null
+  swap_open: boolean
   views: number
   created_at: string
   updated_at: string

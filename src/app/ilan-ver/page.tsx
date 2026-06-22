@@ -33,6 +33,9 @@ interface ListingData {
   price?: number
   quantity?: number
   notes?: string
+  city?: string
+  shipping?: 'kargo' | 'elden' | 'her_ikisi'
+  swapOpen?: boolean
   photos?: string[]
 }
 
@@ -123,6 +126,9 @@ export default function IlanVerPage() {
         notes: data.notes ?? null,
         grader: data.grader ?? null,
         grade: data.grade ?? null,
+        city: data.city || null,
+        shipping: data.shipping ?? 'her_ikisi',
+        swap_open: data.swapOpen ?? false,
         photos: photoUrls,
       })
       .select('id')

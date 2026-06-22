@@ -17,6 +17,8 @@ interface RefPrices {
   updatedAt: string | null
 }
 
+type ShippingOption = 'kargo' | 'elden' | 'her_ikisi'
+
 interface Props {
   category: Category
   productId?: string
@@ -27,6 +29,9 @@ interface Props {
     price: number
     quantity: number
     notes: string
+    city: string
+    shipping: ShippingOption
+    swapOpen: boolean
   }) => void
 }
 
@@ -40,6 +45,9 @@ export default function DetailsStep({ category, productId, onNext }: Props) {
   const [price, setPrice] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [notes, setNotes] = useState('')
+  const [city, setCity] = useState('')
+  const [shipping, setShipping] = useState<ShippingOption>('her_ikisi')
+  const [swapOpen, setSwapOpen] = useState(false)
   const [refPrices, setRefPrices] = useState<RefPrices | null>(null)
 
   useEffect(() => {
@@ -81,6 +89,9 @@ export default function DetailsStep({ category, productId, onNext }: Props) {
       price: Number(price),
       quantity: Number(quantity) || 1,
       notes: notes.trim(),
+      city: city.trim(),
+      shipping,
+      swapOpen,
     })
   }
 
@@ -228,6 +239,63 @@ export default function DetailsStep({ category, productId, onNext }: Props) {
             rows={3}
           />
         </div>
+
+        {/* Şehir */}
+        <div className="space-y-1.5">
+          <Label>Şehir <span className="text-gray-400">(isteğe bağlı)</span></Label>
+          <Input
+            value={city}
+            onChange={e => setCity(e.target.value)}
+            placeholder="İstanbul, Ankara, İzmir..."
+            className="h-11"
+          />
+        </div>
+
+        {/* Kargo / Elden teslim */}
+        <div className="space-y-2">
+          <Label>Teslimat</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { value: 'her_ikisi', label: 'Kargo + Elden' },
+              { value: 'kargo',     label: 'Sadece Kargo' },
+              { value: 'elden',     label: 'Sadece Elden' },
+            ] as { value: ShippingOption; label: string }[]).map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setShipping(opt.value)}
+                className={`py-2.5 px-2 rounded-xl border text-xs font-medium transition-all ${
+                  shipping === opt.value
+                    ? 'border-primary bg-red-50 text-primary ring-2 ring-primary/20'
+                    : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Takasa açık */}
+        <button
+          type="button"
+          onClick={() => setSwapOpen(v => !v)}
+          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+            swapOpen
+              ? 'border-violet-400 bg-violet-50 text-violet-700 ring-2 ring-violet-200'
+              : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
+          }`}
+        >
+          <div className="text-left">
+            <p className="text-sm font-medium">Takasa Açık</p>
+            <p className="text-xs opacity-70">Bu ilanı takas havuzuna da ekle</p>
+          </div>
+          <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+            swapOpen ? 'border-violet-500 bg-violet-500' : 'border-gray-300'
+          }`}>
+            {swapOpen && <div className="h-2 w-2 rounded-full bg-white" />}
+          </div>
+        </button>
 
         <button
           onClick={handleSubmit}
