@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRight, Search, ShieldCheck, Layers3, BookMarked, Bell, ArrowRightLeft, Trophy, TrendingDown, Tag } from 'lucide-react'
+import { ArrowRight, Search, Info, Layers3, BookMarked, Bell, ArrowRightLeft, Trophy, TrendingDown, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
 import ListingGrid from '@/components/cards/ListingGrid'
@@ -51,9 +51,9 @@ const FEATURES = [
     desc: 'Beğendiğin ilana teklif ver, satıcıyla fiyat üzerinde anlaş.',
   },
   {
-    icon: <ShieldCheck className="h-5 w-5 text-primary" />,
-    title: 'Güvenilir satıcı rozeti',
-    desc: 'Yüksek puanlı satıcılar otomatik olarak doğrulanmış rozeti alır.',
+    icon: <Info className="h-5 w-5 text-primary" />,
+    title: 'Güvenli işlem rehberi',
+    desc: 'Sahte kart tespiti, güvenli elden teslim ve dolandırıcılık uyarıları.',
   },
   {
     icon: <Trophy className="h-5 w-5 text-yellow-500" />,
@@ -82,29 +82,37 @@ export default async function HomePage() {
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-16 pb-20 text-center">
 
           <h1 className="text-4xl sm:text-6xl font-bold text-gray-950 mb-5" style={{ letterSpacing: '-0.03em' }}>
-            Koleksiyonunu büyüt.
+            Aradığın kartı bul,
             <br />
-            <span className="text-primary">Pokemon TCG</span> pazaryeri.
+            <span className="text-primary">koleksiyoncularla</span> tanış.
           </h1>
 
-          <p className="text-base sm:text-lg text-gray-500 mb-10 max-w-lg mx-auto leading-relaxed">
-            Kartlarını sat, ihtiyacın olanı bul. Tek ürün sayfasında tüm satıcıları karşılaştır.
+          <p className="text-base sm:text-lg text-gray-500 mb-8 max-w-lg mx-auto leading-relaxed">
+            Poketopu, Pokémon TCG koleksiyoncularını buluşturan ücretsiz ilan ve takas platformudur.
+            Ödeme, kargo ve teslimat kullanıcılar arasında doğrudan gerçekleşir.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/ara">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 px-6 text-base gap-2 shadow-md shadow-primary/20">
                 <Search className="h-5 w-5" />
-                Kart Ara
+                İlanları Keşfet
               </Button>
             </Link>
             <Link href="/ilan-ver">
               <Button size="lg" variant="outline" className="rounded-xl h-12 px-6 text-base gap-2 border-gray-200">
-                İlan Ver
+                Ücretsiz İlan Ver
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>
+
+          <p className="mt-5 text-xs text-gray-400">
+            Poketopu ödeme veya kargo hizmeti sunmaz.{' '}
+            <Link href="/kullanim-kosullari" className="underline underline-offset-2 hover:text-gray-600">
+              Kullanım koşullarını inceleyin →
+            </Link>
+          </p>
 
           {/* Stat strip */}
           <div className="mt-12 flex items-center justify-center gap-8 sm:gap-14 text-center">
@@ -203,11 +211,11 @@ export default async function HomePage() {
       {/* ── CTA ── */}
       <section className="py-16 px-4">
         <div className="max-w-2xl mx-auto text-center bg-gray-950 rounded-3xl p-10">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Koleksiyonunu sat.</h2>
-          <p className="text-gray-400 mb-7 text-sm">Birkaç dakikada mağazanı aç, kartlarını listele.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Profilini oluştur, kartlarını listele.</h2>
+          <p className="text-gray-400 mb-7 text-sm">İlan vermek ve kullanıcılarla iletişim kurmak tamamen ücretsizdir.</p>
           <Link href="/kayit">
             <Button size="lg" className="bg-white text-gray-950 hover:bg-gray-100 rounded-xl h-12 px-8 text-base font-semibold">
-              Ücretsiz Başla
+              Ücretsiz Üye Ol
             </Button>
           </Link>
         </div>
