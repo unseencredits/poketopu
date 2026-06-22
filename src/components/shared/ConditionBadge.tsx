@@ -22,21 +22,13 @@ export default function ConditionBadge({ condition, grader, grade, showLabel = t
 
   if (!condition) return null
 
-  const { label, stars } = CONDITIONS[condition]
+  const { label } = CONDITIONS[condition]
   const colorCls = `condition-${condition.toLowerCase()}`
 
   return (
     <span className={`inline-flex items-center gap-1 rounded-full font-semibold ${colorCls} ${cls}`}>
-      <Stars count={stars} />
-      {showLabel && <span>{label}</span>}
-    </span>
-  )
-}
-
-function Stars({ count }: { count: number }) {
-  return (
-    <span className="tracking-[-2px]">
-      {'★'.repeat(count)}{'☆'.repeat(5 - count)}
+      <span className="font-bold">{condition}</span>
+      {showLabel && <span className="font-normal opacity-80">· {label}</span>}
     </span>
   )
 }

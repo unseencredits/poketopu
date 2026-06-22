@@ -109,9 +109,6 @@ export default function DetailsStep({ category, productId, onNext }: Props) {
                   <span className={`text-base font-bold condition-${code.toLowerCase()} px-2 py-0.5 rounded-full text-xs`}>
                     {code}
                   </span>
-                  <span className="text-[10px] tracking-[-1.5px] text-gray-400">
-                    {'★'.repeat(info.stars)}{'☆'.repeat(5 - info.stars)}
-                  </span>
                   <span className="text-[10px] text-gray-400 font-medium leading-tight">{info.label}</span>
                 </button>
               ))}
