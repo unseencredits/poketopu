@@ -148,7 +148,7 @@ export default function Header() {
       currentUidRef.current = user.id
       await loadNotifs(user.id)
 
-      // Realtime: yeni bildirim gelince badge'i artır
+      // Realtime: REPLICA IDENTITY FULL sayesinde user_id filtresi çalışır
       channel = supabase
         .channel(`notifs:${user.id}`)
         .on('postgres_changes', {
@@ -162,10 +162,27 @@ export default function Header() {
           setNotifUnread(prev => prev + 1)
         })
         .subscribe()
+
     }
 
-    init()
-    return () => { if (channel) supabase.removeChannel(channel) }
+    let visCleanup: (() => void) | null = null
+
+    async function setup() {
+      await init()
+      function onVisible() {
+        if (document.visibilityState === 'visible' && currentUidRef.current) {
+          loadNotifs(currentUidRef.current)
+        }
+      }
+      document.addEventListener('visibilitychange', onVisible)
+      visCleanup = () => document.removeEventListener('visibilitychange', onVisible)
+    }
+
+    setup()
+    return () => {
+      visCleanup?.()
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [])
 
   // Dropdown dışına tıklayınca kapat
