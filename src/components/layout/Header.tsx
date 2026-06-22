@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { Search, MessageCircle, User, Plus, Loader2, Menu, X, ChevronRight, Bell, Tag, ArrowLeftRight, CheckCircle, XCircle, ArrowRightLeft } from 'lucide-react'
+import { Search, MessageCircle, User, Plus, Loader2, Menu, X, ChevronRight, Bell, Tag, ArrowLeftRight, CheckCircle, XCircle, ArrowRightLeft, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useState, useEffect, useRef, Suspense } from 'react'
@@ -196,6 +196,15 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', onOutside)
   }, [])
 
+  async function clearNotifs() {
+    const uid = currentUidRef.current
+    if (!uid) return
+    const supabase = createClient()
+    await supabase.from('notifications').delete().eq('user_id', uid)
+    setNotifs([])
+    setNotifUnread(0)
+  }
+
   async function openNotifPanel() {
     const opening = !notifOpen
     setNotifOpen(opening)
@@ -332,35 +341,46 @@ export default function Header() {
                     {notifs.length === 0 ? (
                       <div className="px-4 py-8 text-center text-sm text-gray-400">Bildirim yok</div>
                     ) : (
-                      <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
-                        {notifs.map(n => {
-                          const meta = NOTIF_ICON[n.type] ?? NOTIF_ICON.offer_received
-                          return (
-                            <Link
-                              key={n.id}
-                              href="/profil"
-                              onClick={() => setNotifOpen(false)}
-                              className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-primary/[0.03]' : ''}`}
-                            >
-                              <div className={`h-8 w-8 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                                {meta.icon}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-xs truncate ${!n.is_read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
-                                  {n.title}
-                                </p>
-                                {n.body && <p className="text-xs text-gray-500 truncate mt-0.5">{n.body}</p>}
-                                <p className="text-[10px] text-gray-400 mt-0.5">
-                                  {new Date(n.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                </p>
-                              </div>
-                              {!n.is_read && (
-                                <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-2" />
-                              )}
-                            </Link>
-                          )
-                        })}
-                      </div>
+                      <>
+                        <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                          {notifs.map(n => {
+                            const meta = NOTIF_ICON[n.type] ?? NOTIF_ICON.offer_received
+                            return (
+                              <Link
+                                key={n.id}
+                                href="/profil"
+                                onClick={() => setNotifOpen(false)}
+                                className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-primary/[0.03]' : ''}`}
+                              >
+                                <div className={`h-8 w-8 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                  {meta.icon}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-xs truncate ${!n.is_read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
+                                    {n.title}
+                                  </p>
+                                  {n.body && <p className="text-xs text-gray-500 truncate mt-0.5">{n.body}</p>}
+                                  <p className="text-[10px] text-gray-400 mt-0.5">
+                                    {new Date(n.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
+                                {!n.is_read && (
+                                  <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-2" />
+                                )}
+                              </Link>
+                            )
+                          })}
+                        </div>
+                        <div className="px-4 py-2.5 border-t border-gray-50">
+                          <button
+                            onClick={clearNotifs}
+                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors w-full justify-center py-1"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Bildirimleri temizle
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
