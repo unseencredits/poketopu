@@ -196,6 +196,13 @@ export default function ConversationPage() {
         </div>
       </div>
 
+      {/* Ödeme uyarısı */}
+      <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 text-center">
+        <p className="text-[11px] text-amber-700 leading-snug">
+          Poketopu ödeme veya kargo güvencesi sunmaz. Tüm işlemler kullanıcılar arasında gerçekleşir.
+        </p>
+      </div>
+
       {/* Mesajlar */}
       <div ref={messagesRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
         {messages.length === 0 && (
