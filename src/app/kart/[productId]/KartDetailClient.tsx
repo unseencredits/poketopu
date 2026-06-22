@@ -310,7 +310,7 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
               })()}
 
               {/* TCGPlayer */}
-              {tcgPrices.tcgplayer && (() => {
+              {tcgPrices.tcgplayer && tcgPrices.tcgplayer.prices && (() => {
                 const prices = tcgPrices.tcgplayer!.prices
                 const variants = Object.entries(prices)
                 const variantLabels: Record<string, string> = {
