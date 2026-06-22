@@ -226,46 +226,47 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
                 <div
                   key={listing.id}
                   onClick={() => selectSeller(listing.id)}
-                  className={`cursor-pointer rounded-2xl border p-4 flex items-center gap-4 transition-colors ${
+                  className={`cursor-pointer rounded-2xl border p-4 transition-colors ${
                     selectedId === listing.id
                       ? 'border-primary bg-red-50/40'
                       : 'border-gray-100 bg-white hover:border-gray-200'
                   }`}
                 >
-                  <div className="flex-shrink-0">
-                    <ConditionBadge condition={listing.condition} showLabel={false} size="sm" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-gray-900 truncate block">
-                      {listing.store?.name ?? 'Satıcı'}
-                    </span>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <ConditionBadge condition={listing.condition} showLabel size="sm" />
-                      {listing.photos?.length > 0 && (
-                        <span className="text-xs text-gray-400">{listing.photos.length} fotoğraf</span>
-                      )}
+                  {/* Üst satır: satıcı adı + durum + fiyat */}
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-semibold text-gray-900 truncate block">
+                        {listing.store?.name ?? 'Satıcı'}
+                      </span>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <ConditionBadge condition={listing.condition} showLabel size="sm" />
+                        {listing.photos?.length > 0 && (
+                          <span className="text-xs text-gray-400">{listing.photos.length} fotoğraf</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                    <p className="text-xl font-bold text-gray-900">
+                    <p className="text-xl font-bold text-gray-900 flex-shrink-0 leading-tight">
                       {listing.price.toLocaleString('tr-TR')} ₺
                     </p>
-                    <div className="flex items-center gap-1.5">
-                      <OfferButton
+                  </div>
+
+                  {/* Alt satır: aksiyon butonları */}
+                  <div
+                    className="flex items-center gap-2 mt-3"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <OfferButton
+                      listingId={listing.id}
+                      sellerId={listing.store?.user_id ?? ''}
+                      listingPrice={listing.price}
+                    />
+                    {listing.store && (
+                      <MessageButton
                         listingId={listing.id}
-                        sellerId={listing.store?.user_id ?? ''}
-                        listingPrice={listing.price}
+                        sellerId={listing.store.user_id}
+                        compact
                       />
-                      {listing.store && (
-                        <MessageButton
-                          listingId={listing.id}
-                          sellerId={listing.store.user_id}
-                          compact
-                        />
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}
