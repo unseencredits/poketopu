@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRight, Search, Info, Layers3, BookMarked, Bell, ArrowRightLeft, Trophy, TrendingDown, Tag } from 'lucide-react'
+import { ArrowRight, Search, Info, Layers3, BookMarked, Bell, ArrowRightLeft, Trophy, TrendingDown, Tag, MessageCircle, Handshake, LayoutList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
 import ListingGrid from '@/components/cards/ListingGrid'
@@ -60,7 +60,28 @@ const FEATURES = [
     icon: <Trophy className="h-5 w-5 text-yellow-500" />,
     title: 'Turnuva & etkinlik',
     desc: 'Türkiye genelindeki Pokemon turnuvalarını takip et, kayıt ol.',
-    href: '/turnuva',
+    href: '/etkinlikler',
+  },
+]
+
+const HOW_IT_WORKS = [
+  {
+    step: '1',
+    icon: <LayoutList className="h-6 w-6 text-primary" />,
+    title: 'İlan ver',
+    desc: 'Kartının fotoğrafını çek, koşulunu seç, fiyatını belirle. Ücretsiz, 2 dakikada.',
+  },
+  {
+    step: '2',
+    icon: <MessageCircle className="h-6 w-6 text-blue-500" />,
+    title: 'Mesajlaş',
+    desc: 'Alıcıyla güvenli mesajlaş, teklif ver ya da al. Tüm iletişim platform içinde.',
+  },
+  {
+    step: '3',
+    icon: <Handshake className="h-6 w-6 text-emerald-500" />,
+    title: 'Anlaş ve değerlendir',
+    desc: '"Anlaşmaya vardık" butonuna bas, işlem tamamlanınca satıcını değerlendir.',
   },
 ]
 
@@ -71,7 +92,7 @@ export default async function HomePage() {
     .select('*, product:products(id,name,set_name,number,image_url), store:stores(id,name,slug)')
     .eq('status', 'active')
     .order('created_at', { ascending: false })
-    .limit(6)
+    .limit(8)
   const recentListings = (recentRaw as Listing[]) ?? []
 
   return (
@@ -127,6 +148,42 @@ export default async function HomePage() {
                 <p className="text-xs text-gray-400 mt-0.5">{label}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── NASIL ÇALIŞIR ── */}
+      <section className="py-14 px-4 border-b border-gray-100">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">3 adımda ilan ver</h2>
+            <p className="text-sm text-gray-500 mt-2">Üye ol, kartını listele, alıcınla buluş.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {HOW_IT_WORKS.map(({ step, icon, title, desc }) => (
+              <div key={step} className="flex flex-col items-start gap-4 p-6 rounded-2xl bg-gray-50">
+                <div className="flex items-center gap-3">
+                  <span className="h-8 w-8 rounded-full bg-white border border-gray-200 text-xs font-bold text-gray-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    {step}
+                  </span>
+                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm flex-shrink-0">
+                    {icon}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">{title}</h3>
+                  <p className="text-sm text-gray-500 mt-1 leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-8 text-center">
+            <Link href="/ilan-ver">
+              <Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-11 px-6 gap-2">
+                Hemen İlan Ver
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -202,7 +259,7 @@ export default async function HomePage() {
                 Tümünü gör <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4">
               <ListingGrid listings={recentListings} />
             </div>
           </div>
