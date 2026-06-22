@@ -4,11 +4,10 @@ import { Suspense } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { unstable_cache } from 'next/cache'
 import { createClient as createSupabaseAnon } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/server'
 import { getSets } from '@/lib/pokemon-tcg'
 import KartlarFiltre from './KartlarFiltre'
+import MobileFilter from './MobileFilter'
 import type { TCGSet } from '@/lib/pokemon-tcg'
-import type { Condition } from '@/types'
 
 interface Props {
   searchParams: Promise<Record<string, string>>
@@ -22,6 +21,7 @@ interface ProductCard {
   image_url: string | null
   count: number
   minPrice: number
+  conditions: string[]
 }
 
 interface Filters {
@@ -70,10 +70,10 @@ const getSetListingCounts = unstable_cache(
     return counts
   },
   ['set-listing-counts'],
-  { revalidate: 300 }, // 5 dk
+  { revalidate: 300 },
 )
 
-// Set kartları 2 dk cache'lenir; fiyat/sıralama filtreleri üstüne uygulanır
+// Set kartları 2 dk cache'lenir; condition verisi de saklanır
 const getProductsInSetCached = unstable_cache(
   async (setId: string): Promise<ProductCard[]> => {
     const supabase = createSupabaseAnon(
@@ -87,7 +87,7 @@ const getProductsInSetCached = unstable_cache(
 
     const { data } = await supabase
       .from('listings')
-      .select('product_id, price, product:products(id,name,set_name,number,image_url)')
+      .select('product_id, price, condition, product:products(id,name,set_name,number,image_url)')
       .eq('status', 'active')
       .eq('category', 'card')
       .in('product_id', productIds)
@@ -104,11 +104,15 @@ const getProductsInSetCached = unstable_cache(
       if (existing) {
         existing.count++
         if (l.price < existing.minPrice) existing.minPrice = l.price
+        if (l.condition && !existing.conditions.includes(l.condition)) {
+          existing.conditions.push(l.condition)
+        }
       } else {
         map.set(l.product_id, {
           id: p.id, name: p.name, set_name: p.set_name,
           number: p.number, image_url: p.image_url,
           count: 1, minPrice: l.price,
+          conditions: l.condition ? [l.condition] : [],
         })
       }
     }
@@ -124,6 +128,7 @@ async function getProductsInSet(
 ): Promise<{ products: ProductCard[]; total: number }> {
   let products = await getProductsInSetCached(setId)
 
+  if (filters.kondisyon) products = products.filter(p => p.conditions.includes(filters.kondisyon!))
   if (filters.min) products = products.filter(p => p.minPrice >= Number(filters.min))
   if (filters.max) products = products.filter(p => p.minPrice <= Number(filters.max))
 
@@ -136,7 +141,7 @@ async function getProductsInSet(
 
 // ─── Setler görünümü ────────────────────────────────────────────────────────
 
-async function SetsView() {
+async function SetsView({ selectedSeri }: { selectedSeri: string | null }) {
   const [allSets, counts] = await Promise.all([getSets(), getSetListingCounts()])
 
   const setsBySeries: Record<string, (TCGSet & { listingCount: number })[]> = {}
@@ -148,23 +153,72 @@ async function SetsView() {
     setsBySeries[series].push({ ...set, listingCount: count })
   }
 
-  const orderedSeries = [
+  const allOrderedSeries = [
     ...SERIES_ORDER.filter(s => setsBySeries[s]),
     ...(setsBySeries['Diğer'] ? ['Diğer'] : []),
   ]
 
+  const displayedSeries = selectedSeri
+    ? allOrderedSeries.filter(s => s === selectedSeri)
+    : allOrderedSeries
+
   const totalListings = Object.values(counts).reduce((a, b) => a + b, 0)
+
+  const setsBySeriesForMobile: Record<string, TCGSet[]> = {}
+  for (const [series, sets] of Object.entries(setsBySeries)) {
+    setsBySeriesForMobile[series] = sets
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Kartlar</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {orderedSeries.length} set · {totalListings.toLocaleString('tr-TR')} aktif ilan
-        </p>
+      <div className="mb-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Kartlar</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {allOrderedSeries.length} seri · {totalListings.toLocaleString('tr-TR')} aktif ilan
+            </p>
+          </div>
+          {/* Mobil: seri & set seçimi */}
+          <div className="sm:hidden">
+            <MobileFilter
+              setsBySeries={setsBySeriesForMobile}
+              selectedSeri={selectedSeri}
+              selectedSetId={null}
+              selectedSetName={null}
+            />
+          </div>
+        </div>
+
+        {/* Masaüstü: yatay kaydırılabilir seri chip'leri */}
+        <div className="hidden sm:flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <Link
+            href="/kartlar"
+            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+              !selectedSeri
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Tümü
+          </Link>
+          {allOrderedSeries.map(series => (
+            <Link
+              key={series}
+              href={`/kartlar?seri=${encodeURIComponent(series)}`}
+              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                selectedSeri === series
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {series}
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {orderedSeries.length === 0 ? (
+      {displayedSeries.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center">
           <p className="text-sm text-gray-400 mb-3">Henüz kart ilanı yok.</p>
           <Link href="/ilan-ver" className="text-sm text-primary hover:underline">
@@ -173,7 +227,7 @@ async function SetsView() {
         </div>
       ) : (
         <div className="space-y-10">
-          {orderedSeries.map(series => (
+          {displayedSeries.map(series => (
             <div key={series}>
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
                 {series}
@@ -279,7 +333,7 @@ async function SetCardsView({
       {products.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center">
           <p className="text-sm text-gray-400 mb-3">
-            {selectedSet ? `${selectedSet.name} setinde henüz ilan yok.` : 'Ilan bulunamadı.'}
+            {selectedSet ? `${selectedSet.name} setinde ilan bulunamadı.` : 'İlan bulunamadı.'}
           </p>
           <Link href="/ilan-ver" className="text-sm text-primary hover:underline">
             İlk ilanı sen ver →
@@ -353,5 +407,5 @@ export default async function KartlarPage({ searchParams }: Props) {
     )
   }
 
-  return <SetsView />
+  return <SetsView selectedSeri={sp.seri ?? null} />
 }
