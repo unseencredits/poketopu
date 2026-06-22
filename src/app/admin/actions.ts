@@ -21,9 +21,21 @@ export async function removeListing(listingId: string) {
 
 export async function banUser(userId: string) {
   const supabase = await requireAdmin()
-  // Tüm aktif ilanları kaldır
-  await supabase.from('listings')
-    .update({ status: 'deleted' })
-    .eq('seller_id', (await supabase.from('stores').select('id').eq('user_id', userId).single()).data?.id ?? '')
+  const { data: store } = await supabase.from('stores').select('id').eq('user_id', userId).single()
+  if (store) {
+    await supabase.from('listings').update({ status: 'deleted' }).eq('seller_id', store.id)
+  }
+  revalidatePath('/admin')
+}
+
+export async function approveEvent(eventId: string) {
+  const supabase = await requireAdmin()
+  await supabase.from('events').update({ status: 'active' }).eq('id', eventId)
+  revalidatePath('/admin')
+}
+
+export async function rejectEvent(eventId: string) {
+  const supabase = await requireAdmin()
+  await supabase.from('events').update({ status: 'cancelled' }).eq('id', eventId)
   revalidatePath('/admin')
 }

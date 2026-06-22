@@ -24,7 +24,7 @@ export default async function TurnuvaPage() {
   const { data } = await supabase
     .from('events')
     .select('*, organizer:profiles(username)')
-    .neq('status', 'cancelled')
+    .eq('status', 'active')
     .order('event_date', { ascending: true })
     .limit(50)
 
