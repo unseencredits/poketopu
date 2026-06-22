@@ -54,6 +54,7 @@ const FEATURES = [
     icon: <Info className="h-5 w-5 text-primary" />,
     title: 'Güvenli işlem rehberi',
     desc: 'Sahte kart tespiti, güvenli elden teslim ve dolandırıcılık uyarıları.',
+    href: '/guvenli-islem',
   },
   {
     icon: <Trophy className="h-5 w-5 text-yellow-500" />,
