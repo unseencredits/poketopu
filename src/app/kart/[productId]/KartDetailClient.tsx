@@ -100,7 +100,7 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
         >
           <div className="relative w-full h-full bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
             {mainPhoto ? (
-              <Image src={mainPhoto} alt={product.name} fill className="object-contain p-4" priority />
+              <Image src={mainPhoto} alt={product.name} fill sizes="(max-width: 640px) calc(100vw - 32px), 384px" className="object-contain p-4" priority />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-24 h-32 rounded-xl bg-gray-200" />
@@ -150,7 +150,7 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
                 }`}
                 style={{ aspectRatio: '5/7' }}
               >
-                <Image src={url} alt={`Fotoğraf ${i + 1}`} fill className="object-contain p-1 bg-gray-50" />
+                <Image src={url} alt={`Fotoğraf ${i + 1}`} fill sizes="80px" className="object-contain p-1 bg-gray-50" />
               </button>
             ))}
           </div>

@@ -32,6 +32,7 @@ export default function IlanPhotoGallery({ photos, alt }: Props) {
             src={photos[current]}
             alt={`${alt} — fotoğraf ${current + 1}`}
             fill
+            sizes="(max-width: 640px) calc(100vw - 32px), 320px"
             className="object-contain p-4"
             priority
           />
@@ -80,7 +81,7 @@ export default function IlanPhotoGallery({ photos, alt }: Props) {
               }`}
               style={{ aspectRatio: '5/7' }}
             >
-              <Image src={url} alt={`Fotoğraf ${i + 1}`} fill className="object-contain p-1 bg-gray-50" />
+              <Image src={url} alt={`Fotoğraf ${i + 1}`} fill sizes="56px" className="object-contain p-1 bg-gray-50" />
             </button>
           ))}
         </div>

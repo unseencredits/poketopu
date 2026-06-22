@@ -756,7 +756,7 @@ export default function ProfilPage() {
                                   <div className="grid grid-cols-4 gap-2 mb-3">
                                     {editPhotos.map((url, i) => (
                                       <div key={url} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
-                                        <Image src={url} alt={`Fotoğraf ${i + 1}`} fill className="object-cover" />
+                                        <Image src={url} alt={`Fotoğraf ${i + 1}`} fill sizes="25vw" className="object-cover" />
                                         {i === 0 && <div className="absolute top-1 left-1 bg-black/60 text-white text-[9px] px-1 py-0.5 rounded font-medium">Kapak</div>}
                                         <button onClick={() => setEditPhotos(prev => prev.filter((_, idx) => idx !== i))}
                                           className="absolute top-1 right-1 h-5 w-5 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
