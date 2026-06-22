@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
+import PhoneVerify from '@/components/profile/PhoneVerify'
 
 interface OfferItem {
   id: string
@@ -655,6 +656,12 @@ export default function ProfilPage() {
             <LogOut className="h-3.5 w-3.5" />
             Çıkış
           </Button>
+        </div>
+
+        {/* Telefon doğrulama */}
+        <div className="mt-4 pt-4 border-t border-gray-50">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Telefon Doğrulama</p>
+          <PhoneVerify currentPhone={(profile as Profile & { phone?: string }).phone} />
         </div>
 
         {/* İstatistikler — profil kartı içinde */}
