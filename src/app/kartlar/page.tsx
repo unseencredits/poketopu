@@ -2,6 +2,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Suspense } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { unstable_cache } from 'next/cache'
+import { createClient as createSupabaseAnon } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getSets } from '@/lib/pokemon-tcg'
 import KartlarFiltre from './KartlarFiltre'
@@ -45,76 +47,89 @@ const SERIES_ORDER = [
   'Base',
 ]
 
-async function getSetListingCounts(): Promise<Record<string, number>> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('listings')
-    .select('product:products!inner(set_id)')
-    .eq('status', 'active')
-    .eq('category', 'card')
-    .not('product_id', 'is', null)
-    .limit(5000)
+// 5 dakika sunucu cache'i — cookie bağımsız anon client kullanır
+const getSetListingCounts = unstable_cache(
+  async (): Promise<Record<string, number>> => {
+    const supabase = createSupabaseAnon(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    )
+    const { data } = await supabase
+      .from('listings')
+      .select('product:products!inner(set_id)')
+      .eq('status', 'active')
+      .eq('category', 'card')
+      .not('product_id', 'is', null)
+      .limit(5000)
 
-  const counts: Record<string, number> = {}
-  for (const l of data ?? []) {
-    const setId = (l.product as unknown as { set_id: string | null })?.set_id
-    if (setId) counts[setId] = (counts[setId] ?? 0) + 1
-  }
-  return counts
-}
+    const counts: Record<string, number> = {}
+    for (const l of data ?? []) {
+      const setId = (l.product as unknown as { set_id: string | null })?.set_id
+      if (setId) counts[setId] = (counts[setId] ?? 0) + 1
+    }
+    return counts
+  },
+  ['set-listing-counts'],
+  { revalidate: 300 }, // 5 dk
+)
+
+// Set kartları 2 dk cache'lenir; fiyat/sıralama filtreleri üstüne uygulanır
+const getProductsInSetCached = unstable_cache(
+  async (setId: string): Promise<ProductCard[]> => {
+    const supabase = createSupabaseAnon(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    )
+    const { data: prods } = await supabase
+      .from('products').select('id').eq('set_id', setId)
+    const productIds = (prods ?? []).map((p: { id: string }) => p.id)
+    if (!productIds.length) return []
+
+    const { data } = await supabase
+      .from('listings')
+      .select('product_id, price, product:products(id,name,set_name,number,image_url)')
+      .eq('status', 'active')
+      .eq('category', 'card')
+      .in('product_id', productIds)
+      .limit(2000)
+
+    const map = new Map<string, ProductCard>()
+    for (const l of data ?? []) {
+      if (!l.product_id || !l.product) continue
+      const p = l.product as unknown as {
+        id: string; name: string; set_name: string | null
+        number: string | null; image_url: string | null
+      }
+      const existing = map.get(l.product_id)
+      if (existing) {
+        existing.count++
+        if (l.price < existing.minPrice) existing.minPrice = l.price
+      } else {
+        map.set(l.product_id, {
+          id: p.id, name: p.name, set_name: p.set_name,
+          number: p.number, image_url: p.image_url,
+          count: 1, minPrice: l.price,
+        })
+      }
+    }
+    return Array.from(map.values())
+  },
+  ['set-products'],
+  { revalidate: 120 },
+)
 
 async function getProductsInSet(
   setId: string,
   filters: Filters = {},
 ): Promise<{ products: ProductCard[]; total: number }> {
-  const supabase = await createClient()
+  let products = await getProductsInSetCached(setId)
 
-  const { data: prods } = await supabase
-    .from('products')
-    .select('id')
-    .eq('set_id', setId)
+  if (filters.min) products = products.filter(p => p.minPrice >= Number(filters.min))
+  if (filters.max) products = products.filter(p => p.minPrice <= Number(filters.max))
 
-  const productIds = (prods ?? []).map((p: { id: string }) => p.id)
-  if (!productIds.length) return { products: [], total: 0 }
-
-  let query = supabase
-    .from('listings')
-    .select('product_id, price, product:products(id,name,set_name,number,image_url)')
-    .eq('status', 'active')
-    .eq('category', 'card')
-    .in('product_id', productIds)
-    .limit(2000)
-
-  if (filters.kondisyon) query = query.eq('condition', filters.kondisyon as Condition)
-  if (filters.min)       query = query.gte('price', Number(filters.min))
-  if (filters.max)       query = query.lte('price', Number(filters.max))
-
-  const { data } = await query
-
-  const map = new Map<string, ProductCard>()
-  for (const l of data ?? []) {
-    if (!l.product_id || !l.product) continue
-    const p = l.product as unknown as {
-      id: string; name: string; set_name: string | null
-      number: string | null; image_url: string | null
-    }
-    const existing = map.get(l.product_id)
-    if (existing) {
-      existing.count++
-      if (l.price < existing.minPrice) existing.minPrice = l.price
-    } else {
-      map.set(l.product_id, {
-        id: p.id, name: p.name, set_name: p.set_name,
-        number: p.number, image_url: p.image_url,
-        count: 1, minPrice: l.price,
-      })
-    }
-  }
-
-  let products = Array.from(map.values())
-  if (filters.sirala === 'fiyat-asc')  products.sort((a, b) => a.minPrice - b.minPrice)
-  else if (filters.sirala === 'fiyat-desc') products.sort((a, b) => b.minPrice - a.minPrice)
-  else products.sort((a, b) => b.count - a.count)
+  if (filters.sirala === 'fiyat-asc')       products = [...products].sort((a, b) => a.minPrice - b.minPrice)
+  else if (filters.sirala === 'fiyat-desc') products = [...products].sort((a, b) => b.minPrice - a.minPrice)
+  else                                       products = [...products].sort((a, b) => b.count - a.count)
 
   return { products, total: products.length }
 }
