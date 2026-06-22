@@ -70,6 +70,7 @@ export default function Header() {
   const [searching, setSearching] = useState(false)
   const [unread, setUnread] = useState(0)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const [notifs, setNotifs] = useState<NotifItem[]>([])
   const [notifUnread, setNotifUnread] = useState(0)
@@ -78,6 +79,16 @@ export default function Header() {
   const currentUidRef = useRef<string | null>(null)
 
   useEffect(() => { setMobileOpen(false) }, [pathname])
+
+  // Auth state — giriş/çıkış takibi
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUserId(session?.user?.id ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   // ── Mesaj okunmamış sayısı ──────────────────────────────────────────────
   useEffect(() => {
@@ -313,95 +324,117 @@ export default function Header() {
                 </Button>
               </Link>
 
-              {/* Bildirim bell */}
-              <div className="relative" ref={notifRef}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative h-9 w-9"
-                  onClick={openNotifPanel}
-                  aria-label="Bildirimler"
-                >
-                  <Bell className="h-5 w-5" />
-                  {notifUnread > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                      {notifUnread > 9 ? '9+' : notifUnread}
-                    </span>
-                  )}
-                </Button>
+              {userId ? (
+                <>
+                  {/* Bildirim bell */}
+                  <div className="relative" ref={notifRef}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative h-9 w-9"
+                      onClick={openNotifPanel}
+                      aria-label="Bildirimler"
+                    >
+                      <Bell className="h-5 w-5" />
+                      {notifUnread > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                          {notifUnread > 9 ? '9+' : notifUnread}
+                        </span>
+                      )}
+                    </Button>
 
-                {notifOpen && (
-                  <div className="absolute right-0 top-11 w-80 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">Bildirimler</p>
-                      <Link href="/profil" onClick={() => setNotifOpen(false)} className="text-xs text-primary hover:underline">
-                        Profile git
-                      </Link>
-                    </div>
-                    {notifs.length === 0 ? (
-                      <div className="px-4 py-8 text-center text-sm text-gray-400">Bildirim yok</div>
-                    ) : (
-                      <>
-                        <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
-                          {notifs.map(n => {
-                            const meta = NOTIF_ICON[n.type] ?? NOTIF_ICON.offer_received
-                            return (
-                              <Link
-                                key={n.id}
-                                href="/profil"
-                                onClick={() => setNotifOpen(false)}
-                                className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-primary/[0.03]' : ''}`}
+                    {notifOpen && (
+                      <div className="absolute right-0 top-11 w-80 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+                        <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+                          <p className="text-sm font-semibold text-gray-900">Bildirimler</p>
+                          <Link href="/profil" onClick={() => setNotifOpen(false)} className="text-xs text-primary hover:underline">
+                            Profile git
+                          </Link>
+                        </div>
+                        {notifs.length === 0 ? (
+                          <div className="px-4 py-8 text-center text-sm text-gray-400">Bildirim yok</div>
+                        ) : (
+                          <>
+                            <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                              {notifs.map(n => {
+                                const meta = NOTIF_ICON[n.type] ?? NOTIF_ICON.offer_received
+                                return (
+                                  <Link
+                                    key={n.id}
+                                    href="/profil"
+                                    onClick={() => setNotifOpen(false)}
+                                    className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-primary/[0.03]' : ''}`}
+                                  >
+                                    <div className={`h-8 w-8 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                      {meta.icon}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-xs truncate ${!n.is_read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
+                                        {n.title}
+                                      </p>
+                                      {n.body && <p className="text-xs text-gray-500 truncate mt-0.5">{n.body}</p>}
+                                      <p className="text-[10px] text-gray-400 mt-0.5">
+                                        {new Date(n.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                      </p>
+                                    </div>
+                                    {!n.is_read && (
+                                      <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-2" />
+                                    )}
+                                  </Link>
+                                )
+                              })}
+                            </div>
+                            <div className="px-4 py-2.5 border-t border-gray-50">
+                              <button
+                                onClick={clearNotifs}
+                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors w-full justify-center py-1"
                               >
-                                <div className={`h-8 w-8 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                                  {meta.icon}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className={`text-xs truncate ${!n.is_read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
-                                    {n.title}
-                                  </p>
-                                  {n.body && <p className="text-xs text-gray-500 truncate mt-0.5">{n.body}</p>}
-                                  <p className="text-[10px] text-gray-400 mt-0.5">
-                                    {new Date(n.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                  </p>
-                                </div>
-                                {!n.is_read && (
-                                  <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-2" />
-                                )}
-                              </Link>
-                            )
-                          })}
-                        </div>
-                        <div className="px-4 py-2.5 border-t border-gray-50">
-                          <button
-                            onClick={clearNotifs}
-                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors w-full justify-center py-1"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Bildirimleri temizle
-                          </button>
-                        </div>
-                      </>
+                                <Trash2 className="h-3 w-3" />
+                                Bildirimleri temizle
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              <Link href="/mesajlar">
-                <Button variant="ghost" size="icon" className="relative h-9 w-9">
-                  <MessageCircle className="h-5 w-5" />
-                  {unread > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
-                      {unread > 9 ? '9+' : unread}
-                    </span>
-                  )}
-                </Button>
-              </Link>
+                  <Link href="/mesajlar">
+                    <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                      <MessageCircle className="h-5 w-5" />
+                      {unread > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                          {unread > 9 ? '9+' : unread}
+                        </span>
+                      )}
+                    </Button>
+                  </Link>
 
-              <Link href="/profil">
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
+                  <Link href="/profil">
+                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/giris" className="hidden sm:block">
+                    <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-gray-600">
+                      Giriş Yap
+                    </Button>
+                  </Link>
+                  <Link href="/kayit" className="hidden sm:block">
+                    <Button size="sm" className="bg-primary hover:bg-primary/90 text-white rounded-lg h-8 text-xs">
+                      Üye Ol
+                    </Button>
+                  </Link>
+                  <Link href="/giris" className="sm:hidden">
+                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
@@ -460,34 +493,61 @@ export default function Header() {
                 </Link>
               ))}
               <div className="mx-4 my-3 border-t border-gray-100" />
-              <Link href="/profil"
-                className="flex items-center justify-between px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
-              >
-                Profilim
-                {notifUnread > 0 && (
-                  <span className="h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                    {notifUnread > 9 ? '9+' : notifUnread}
-                  </span>
-                )}
-              </Link>
-              <Link href="/mesajlar"
-                className="flex items-center justify-between px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
-              >
-                Mesajlar
-                {unread > 0 && (
-                  <span className="h-5 w-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
-                    {unread > 9 ? '9+' : unread}
-                  </span>
-                )}
-              </Link>
+              {userId ? (
+                <>
+                  <Link href="/profil"
+                    className="flex items-center justify-between px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+                  >
+                    Profilim
+                    {notifUnread > 0 && (
+                      <span className="h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                        {notifUnread > 9 ? '9+' : notifUnread}
+                      </span>
+                    )}
+                  </Link>
+                  <Link href="/mesajlar"
+                    className="flex items-center justify-between px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+                  >
+                    Mesajlar
+                    {unread > 0 && (
+                      <span className="h-5 w-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                        {unread > 9 ? '9+' : unread}
+                      </span>
+                    )}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/giris"
+                    className="flex items-center justify-between px-5 py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+                  >
+                    Giriş Yap
+                    <ChevronRight className="h-4 w-4 text-gray-300" />
+                  </Link>
+                  <Link href="/kayit"
+                    className="flex items-center justify-between px-5 py-3.5 text-sm font-semibold text-primary hover:bg-red-50 transition-colors"
+                  >
+                    Üye Ol
+                    <ChevronRight className="h-4 w-4 text-primary/40" />
+                  </Link>
+                </>
+              )}
             </nav>
             <div className="p-4 border-t border-gray-100">
-              <Link href="/ilan-ver" onClick={() => setMobileOpen(false)}>
-                <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl gap-2">
-                  <Plus className="h-4 w-4" />
-                  İlan Ver
-                </Button>
-              </Link>
+              {userId ? (
+                <Link href="/ilan-ver" onClick={() => setMobileOpen(false)}>
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl gap-2">
+                    <Plus className="h-4 w-4" />
+                    İlan Ver
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/giris" onClick={() => setMobileOpen(false)}>
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl">
+                    Giriş Yap
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
