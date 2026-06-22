@@ -2,11 +2,19 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Search, MessageCircle, User, Plus, Loader2, Menu, X, ChevronRight } from 'lucide-react'
+import { Search, MessageCircle, User, Plus, Loader2, Menu, X, ChevronRight, Bell, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+
+interface NotifItem {
+  id: string
+  amount: number
+  created_at: string
+  listingTitle: string
+  buyerUsername: string
+}
 
 const NAV_LINKS = [
   { href: '/kartlar',            label: 'Kartlar' },
@@ -24,6 +32,10 @@ export default function Header() {
   const [searching, setSearching] = useState(false)
   const [unread, setUnread] = useState(0)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [notifs, setNotifs] = useState<NotifItem[]>([])
+  const [notifNew, setNotifNew] = useState(0)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMobileOpen(false)
@@ -51,10 +63,55 @@ export default function Header() {
       setUnread(count ?? 0)
     }
 
+    async function loadNotifs(uid: string) {
+      const { data: storeRow } = await supabase
+        .from('stores')
+        .select('id')
+        .eq('user_id', uid)
+        .maybeSingle()
+      if (!storeRow) return
+
+      const { data: listingIds } = await supabase
+        .from('listings')
+        .select('id')
+        .eq('store_id', storeRow.id)
+      const ids = (listingIds ?? []).map((l: { id: string }) => l.id)
+      if (!ids.length) return
+
+      const { data: rows } = await supabase
+        .from('offers')
+        .select('id, amount, created_at, listing:listings(custom_title, product:products(name)), buyer:profiles(username)')
+        .in('listing_id', ids)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(6)
+
+      const items: NotifItem[] = (rows ?? []).map((r) => {
+        const row = r as unknown as {
+          id: string; amount: number; created_at: string;
+          listing: { custom_title: string | null; product: { name: string } | null } | null;
+          buyer: { username: string } | null;
+        }
+        return {
+          id: row.id,
+          amount: row.amount,
+          created_at: row.created_at,
+          listingTitle: row.listing?.custom_title ?? row.listing?.product?.name ?? 'İlan',
+          buyerUsername: row.buyer?.username ?? '?',
+        }
+      })
+      setNotifs(items)
+
+      const seenAt = parseInt(localStorage.getItem('notif_seen') || '0')
+      const newCount = items.filter(i => new Date(i.created_at).getTime() > seenAt).length
+      setNotifNew(newCount)
+    }
+
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       loadUnread(user.id)
+      loadNotifs(user.id)
     }
 
     init()
@@ -80,6 +137,25 @@ export default function Header() {
     window.addEventListener('unread-refresh', refresh)
     return () => window.removeEventListener('unread-refresh', refresh)
   }, [])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  function openNotifPanel() {
+    setNotifOpen(v => !v)
+    if (!notifOpen) {
+      const now = Date.now()
+      localStorage.setItem('notif_seen', String(now))
+      setNotifNew(0)
+    }
+  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -198,6 +274,62 @@ export default function Header() {
                   İlan Ver
                 </Button>
               </Link>
+
+              {/* Bildirim bell */}
+              <div className="relative" ref={notifRef}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative h-9 w-9"
+                  onClick={openNotifPanel}
+                  aria-label="Bildirimler"
+                >
+                  <Bell className="h-5 w-5" />
+                  {notifNew > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {notifNew > 9 ? '9+' : notifNew}
+                    </span>
+                  )}
+                </Button>
+
+                {notifOpen && (
+                  <div className="absolute right-0 top-11 w-80 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">Bekleyen Teklifler</p>
+                      <Link href="/profil" onClick={() => setNotifOpen(false)} className="text-xs text-primary hover:underline">
+                        Tümünü gör
+                      </Link>
+                    </div>
+                    {notifs.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-sm text-gray-400">Bekleyen teklif yok</div>
+                    ) : (
+                      <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+                        {notifs.map(n => (
+                          <Link
+                            key={n.id}
+                            href="/profil"
+                            onClick={() => setNotifOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="h-8 w-8 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                              <Tag className="h-4 w-4 text-amber-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-900 truncate">{n.listingTitle}</p>
+                              <p className="text-xs text-gray-500">
+                                @{n.buyerUsername} — <span className="font-semibold text-gray-700">{n.amount.toLocaleString('tr-TR')} ₺</span>
+                              </p>
+                            </div>
+                            <span className="text-[10px] text-gray-400 flex-shrink-0">
+                              {new Date(n.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <Link href="/mesajlar">
                 <Button variant="ghost" size="icon" className="relative h-9 w-9">

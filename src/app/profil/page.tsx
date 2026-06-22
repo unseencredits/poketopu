@@ -18,8 +18,10 @@ import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from 
 interface OfferItem {
   id: string
   amount: number
-  status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+  status: 'pending' | 'accepted' | 'rejected' | 'withdrawn' | 'countered'
   message: string | null
+  counter_amount: number | null
+  counter_message: string | null
   created_at: string
   listing: {
     id: string
@@ -130,6 +132,35 @@ export default function ProfilPage() {
   const [ratingHover, setRatingHover] = useState(0)
   const [submittingRating, setSubmittingRating] = useState(false)
 
+  // Karşı teklif state
+  const [counterOfferId, setCounterOfferId] = useState<string | null>(null)
+  const [counterAmount, setCounterAmount] = useState('')
+  const [counterMessage, setCounterMessage] = useState('')
+  const [submittingCounter, setSubmittingCounter] = useState(false)
+
+  // Sekme görülme zamanları (smart badges için)
+  const [tabSeen, setTabSeen] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    const stored: Record<string, number> = {}
+    for (const tab of ['ilanlarim', 'alimlarim', 'takaslarim', 'koleksiyon', 'teklifler']) {
+      stored[tab] = parseInt(localStorage.getItem(`tab_seen_${tab}`) || '0')
+    }
+    setTabSeen(stored)
+  }, [])
+
+  function handleTabChange(value: string) {
+    const now = Date.now()
+    localStorage.setItem(`tab_seen_${value}`, String(now))
+    setTabSeen(prev => ({ ...prev, [value]: now }))
+  }
+
+  function countNew(items: Array<{ created_at: string }>, tabKey: string) {
+    const seenAt = tabSeen[tabKey] ?? 0
+    if (seenAt === 0) return 0
+    return items.filter(i => new Date(i.created_at).getTime() > seenAt).length
+  }
+
   useEffect(() => {
     async function load() {
       const supabase = createClient()
@@ -173,7 +204,7 @@ export default function ProfilPage() {
       const [{ data: myOffers }, { data: receivedOffers }] = await Promise.all([
         supabase
           .from('offers')
-          .select('id, amount, status, message, created_at, listing:listings(id, price, custom_title, product:products(name, image_url))')
+          .select('id, amount, status, message, counter_amount, counter_message, created_at, listing:listings(id, price, custom_title, product:products(name, image_url))')
           .eq('buyer_id', user.id)
           .neq('status', 'withdrawn')
           .order('created_at', { ascending: false })
@@ -181,7 +212,7 @@ export default function ProfilPage() {
 
         st ? supabase
           .from('offers')
-          .select('id, amount, status, message, created_at, listing:listings(id, price, custom_title, product:products(name, image_url)), buyer:profiles(id, username)')
+          .select('id, amount, status, message, counter_amount, counter_message, created_at, listing:listings(id, price, custom_title, product:products(name, image_url)), buyer:profiles(id, username)')
           .in('listing_id',
             await supabase.from('listings').select('id').eq('seller_id', st.id).then(r => (r.data ?? []).map((l: { id: string }) => l.id))
           )
@@ -286,6 +317,27 @@ export default function ProfilPage() {
     await supabase.auth.signOut()
     router.push('/')
     router.refresh()
+  }
+
+  async function submitCounter(offerId: string) {
+    const val = parseFloat(counterAmount)
+    const offer = offers.find(o => o.id === offerId)
+    if (!val || val <= 0 || !offer) return
+    setSubmittingCounter(true)
+    const supabase = createClient()
+    await supabase.from('offers').update({
+      status: 'countered',
+      counter_amount: val,
+      counter_message: counterMessage.trim() || null,
+    }).eq('id', offerId)
+    setOffers(prev => prev.map(o => o.id === offerId
+      ? { ...o, status: 'countered', counter_amount: val, counter_message: counterMessage.trim() || null }
+      : o
+    ))
+    setCounterOfferId(null)
+    setCounterAmount('')
+    setCounterMessage('')
+    setSubmittingCounter(false)
   }
 
   // ─── Edit ───────────────────────────────────────────────────────────────────
@@ -568,29 +620,43 @@ export default function ProfilPage() {
       </div>
 
       {/* Sekmeli içerik */}
-      <Tabs defaultValue="ilanlarim">
-        <TabsList className="w-full h-auto p-1 bg-gray-100 rounded-2xl grid grid-cols-5 gap-1">
-          {[
-            { value: 'ilanlarim',   label: 'İlanlarım',   badge: activeCount > 0 ? activeCount : null },
-            { value: 'alimlarim',   label: 'Alımlarım',   badge: purchases.length > 0 ? purchases.length : null },
-            { value: 'takaslarim',  label: 'Takas',        badge: tradeMatches.length > 0 ? tradeMatches.length : null },
-            { value: 'koleksiyon',  label: 'Koleksiyon',  badge: null },
-            { value: 'teklifler',   label: 'Teklifler',   badge: offers.filter(o => !o.isMine && o.status === 'pending').length > 0 ? offers.filter(o => !o.isMine && o.status === 'pending').length : null },
-          ].map(({ value, label, badge }) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className="relative rounded-xl text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm"
-            >
-              {label}
-              {badge !== null && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center">
-                  {badge}
-                </span>
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <Tabs defaultValue="ilanlarim" onValueChange={handleTabChange}>
+        <div className="overflow-x-auto pb-0.5 -mx-1 px-1">
+          <TabsList className="inline-flex h-auto p-1 bg-gray-100 rounded-2xl gap-1 min-w-full">
+            {(() => {
+              const pendingOffers = offers.filter(o => !o.isMine && o.status === 'pending')
+              const newOffers = countNew(pendingOffers, 'teklifler')
+              const newTrades = 0 // TradeMatch has no created_at
+
+              return [
+                { value: 'ilanlarim',  label: 'İlanlarım',  newCount: 0,         totalCount: activeCount },
+                { value: 'alimlarim',  label: 'Alımlarım',  newCount: countNew(purchases, 'alimlarim'), totalCount: purchases.length },
+                { value: 'takaslarim', label: 'Takas',       newCount: newTrades, totalCount: myTrades.length },
+                { value: 'koleksiyon', label: 'Koleksiyon',  newCount: 0,         totalCount: myCollections.length },
+                { value: 'teklifler',  label: 'Teklifler',   newCount: newOffers, totalCount: pendingOffers.length },
+              ].map(({ value, label, newCount, totalCount }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="relative flex-shrink-0 rounded-xl text-xs font-medium px-3 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 text-gray-500"
+                >
+                  <span className="flex items-center gap-1.5">
+                    {label}
+                    {newCount > 0 ? (
+                      <span className="h-4 min-w-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                        {newCount}
+                      </span>
+                    ) : totalCount > 0 ? (
+                      <span className="h-4 min-w-4 px-0.5 rounded-full bg-gray-400 text-white text-[9px] font-bold flex items-center justify-center">
+                        {totalCount}
+                      </span>
+                    ) : null}
+                  </span>
+                </TabsTrigger>
+              ))
+            })()}
+          </TabsList>
+        </div>
 
         {/* ── İLANLARIM ── */}
         <TabsContent value="ilanlarim" className="mt-3">
@@ -1176,40 +1242,105 @@ export default function ProfilPage() {
                 {offers.map(offer => {
                   const title = offer.listing?.custom_title ?? (offer.listing as { product?: { name: string } | null } | null)?.product?.name ?? '—'
                   const img = (offer.listing as { product?: { image_url: string | null } | null } | null)?.product?.image_url
-                  const statusLabel: Record<string, string> = { pending: 'Bekliyor', accepted: 'Kabul Edildi', rejected: 'Reddedildi', withdrawn: 'Geri Çekildi' }
-                  const statusColor: Record<string, string> = { pending: 'bg-amber-50 text-amber-700 border-amber-200', accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200', rejected: 'bg-red-50 text-red-600 border-red-200', withdrawn: 'bg-gray-50 text-gray-500 border-gray-200' }
+                  const statusLabel: Record<string, string> = { pending: 'Bekliyor', accepted: 'Kabul Edildi', rejected: 'Reddedildi', withdrawn: 'Geri Çekildi', countered: 'Karşı Teklif' }
+                  const statusColor: Record<string, string> = { pending: 'bg-amber-50 text-amber-700 border-amber-200', accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200', rejected: 'bg-red-50 text-red-600 border-red-200', withdrawn: 'bg-gray-50 text-gray-500 border-gray-200', countered: 'bg-blue-50 text-blue-700 border-blue-200' }
+                  const isCountering = counterOfferId === offer.id
                   return (
-                    <div key={offer.id} className="flex items-center gap-3 p-4">
-                      <div className="h-12 w-9 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
-                        {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-sm font-bold text-gray-900">{offer.amount.toLocaleString('tr-TR')} ₺</span>
-                          {offer.listing?.price && <span className="text-xs text-gray-400">/ {offer.listing.price.toLocaleString('tr-TR')} ₺</span>}
-                          {!offer.isMine && offer.buyer && <span className="text-xs text-gray-500">@{(offer.buyer as { username: string }).username}</span>}
-                          {offer.isMine && <span className="text-xs text-gray-400">Verdiğim teklif</span>}
+                    <div key={offer.id} className="border-b border-gray-50 last:border-0">
+                      <div className="flex items-center gap-3 p-4">
+                        <div className="h-12 w-9 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
+                          {img && <img src={img} alt={title} className="h-full w-full object-contain" />}
                         </div>
-                        {offer.message && <p className="text-xs text-gray-500 mt-0.5 truncate italic">{offer.message}</p>}
-                      </div>
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${statusColor[offer.status] ?? statusColor.pending}`}>
-                          {statusLabel[offer.status] ?? offer.status}
-                        </span>
-                        {!offer.isMine && offer.status === 'pending' && (
-                          <div className="flex gap-1">
-                            <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'accepted' }).eq('id', offer.id); setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'accepted' } : o)) }}
-                              className="text-[10px] px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-medium">Kabul</button>
-                            <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'rejected' }).eq('id', offer.id); setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'rejected' } : o)) }}
-                              className="text-[10px] px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-medium">Red</button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{title}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-sm font-bold text-gray-900">{offer.amount.toLocaleString('tr-TR')} ₺</span>
+                            {offer.listing?.price && <span className="text-xs text-gray-400">/ {offer.listing.price.toLocaleString('tr-TR')} ₺</span>}
+                            {!offer.isMine && offer.buyer && <span className="text-xs text-gray-500">@{(offer.buyer as { username: string }).username}</span>}
+                            {offer.isMine && <span className="text-xs text-gray-400">Verdiğim teklif</span>}
                           </div>
-                        )}
-                        {offer.isMine && offer.status === 'pending' && (
-                          <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'withdrawn' }).eq('id', offer.id); setOffers(prev => prev.filter(o => o.id !== offer.id)) }}
-                            className="text-[10px] text-gray-400 hover:text-red-500">Geri çek</button>
-                        )}
+                          {offer.message && <p className="text-xs text-gray-500 mt-0.5 truncate italic">{offer.message}</p>}
+                          {/* Karşı teklif bilgisi */}
+                          {offer.status === 'countered' && offer.counter_amount && (
+                            <div className="mt-1 text-xs text-blue-700 bg-blue-50 rounded-lg px-2 py-1">
+                              Karşı teklif: <span className="font-bold">{offer.counter_amount.toLocaleString('tr-TR')} ₺</span>
+                              {offer.counter_message && <span className="text-blue-600 ml-1">— {offer.counter_message}</span>}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${statusColor[offer.status] ?? statusColor.pending}`}>
+                            {statusLabel[offer.status] ?? offer.status}
+                          </span>
+
+                          {/* Satıcı: gelen teklif, pending */}
+                          {!offer.isMine && offer.status === 'pending' && (
+                            <div className="flex gap-1">
+                              <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'accepted' }).eq('id', offer.id); setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'accepted' } : o)) }}
+                                className="text-[10px] px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-semibold">✓ Kabul</button>
+                              <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'rejected' }).eq('id', offer.id); setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'rejected' } : o)) }}
+                                className="text-[10px] px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-semibold">✕ Red</button>
+                            </div>
+                          )}
+                          {!offer.isMine && offer.status === 'pending' && (
+                            <button
+                              onClick={() => { setCounterOfferId(isCountering ? null : offer.id); setCounterAmount(''); setCounterMessage('') }}
+                              className="text-[10px] text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              {isCountering ? 'İptal' : '↩ Karşı Teklif'}
+                            </button>
+                          )}
+
+                          {/* Alıcı: verdiğim teklif, countered */}
+                          {offer.isMine && offer.status === 'countered' && (
+                            <div className="flex gap-1">
+                              <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'accepted' }).eq('id', offer.id); setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'accepted' } : o)) }}
+                                className="text-[10px] px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-semibold">Kabul Et</button>
+                              <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'rejected' }).eq('id', offer.id); setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, status: 'rejected' } : o)) }}
+                                className="text-[10px] px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-semibold">Reddet</button>
+                            </div>
+                          )}
+
+                          {offer.isMine && offer.status === 'pending' && (
+                            <button onClick={async () => { const supabase = createClient(); await supabase.from('offers').update({ status: 'withdrawn' }).eq('id', offer.id); setOffers(prev => prev.filter(o => o.id !== offer.id)) }}
+                              className="text-[10px] text-gray-400 hover:text-red-500">Geri çek</button>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Karşı teklif formu — inline expand */}
+                      {isCountering && (
+                        <div className="mx-4 mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-2">
+                          <p className="text-xs font-semibold text-blue-800">Karşı Teklif</p>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <input
+                                type="number"
+                                value={counterAmount}
+                                onChange={e => setCounterAmount(e.target.value)}
+                                placeholder="Tutar"
+                                className="w-full h-8 pl-3 pr-8 rounded-lg border border-blue-200 bg-white text-sm focus:outline-none focus:border-blue-400"
+                                autoFocus
+                              />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">₺</span>
+                            </div>
+                            <button
+                              onClick={() => submitCounter(offer.id)}
+                              disabled={submittingCounter || !counterAmount}
+                              className="h-8 px-3 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-40"
+                            >
+                              {submittingCounter ? '...' : 'Gönder'}
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            value={counterMessage}
+                            onChange={e => setCounterMessage(e.target.value)}
+                            placeholder="Mesaj (isteğe bağlı)"
+                            className="w-full h-8 px-3 rounded-lg border border-blue-200 bg-white text-xs focus:outline-none focus:border-blue-400"
+                          />
+                        </div>
+                      )}
                     </div>
                   )
                 })}
