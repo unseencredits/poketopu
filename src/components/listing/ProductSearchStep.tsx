@@ -6,7 +6,21 @@ import { Search, Loader2, Check, ChevronDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { searchCards, getSets, type TCGCard, type TCGSet } from '@/lib/pokemon-tcg'
+import type { TCGCard, TCGSet } from '@/lib/pokemon-tcg'
+
+async function fetchSets(): Promise<TCGSet[]> {
+  const res = await fetch('/api/tcg/sets')
+  if (!res.ok) return []
+  return res.json()
+}
+
+async function fetchCards(q: string, setId?: string): Promise<{ data: TCGCard[]; totalCount: number }> {
+  const params = new URLSearchParams({ q })
+  if (setId) params.set('set_id', setId)
+  const res = await fetch(`/api/tcg/cards?${params}`)
+  if (!res.ok) return { data: [], totalCount: 0 }
+  return res.json()
+}
 import type { Category } from '@/types'
 
 interface Props {
@@ -48,7 +62,7 @@ export default function ProductSearchStep({ category, onSelect }: Props) {
 
   // Setleri yükle
   useEffect(() => {
-    getSets().then(data => {
+    fetchSets().then(data => {
       setSets(data)
       setLoadingSets(false)
     })
@@ -58,7 +72,7 @@ export default function ProductSearchStep({ category, onSelect }: Props) {
     if (!query.trim()) return
     setLoading(true)
     setSearched(true)
-    const { data } = await searchCards(query.trim(), 1, selectedSetId || undefined)
+    const { data } = await fetchCards(query.trim(), selectedSetId || undefined)
     setResults(data)
     setLoading(false)
   }, [query, selectedSetId])
