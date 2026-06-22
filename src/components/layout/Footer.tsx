@@ -8,7 +8,7 @@ export default function Footer() {
           <div>
             <span className="text-lg font-bold text-red-500">poketopu</span>
             <p className="mt-2 text-sm text-gray-500">
-              Türkiye'nin TCG pazaryeri
+              Türkiye'nin TCG ilan ve takas platformu
             </p>
           </div>
 
@@ -43,8 +43,17 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-gray-200 text-center text-xs text-gray-400">
-          © {new Date().getFullYear()} poketopu.com — Tüm hakları saklıdır.
+        <div className="mt-8 pt-8 border-t border-gray-200 space-y-3 text-center text-xs text-gray-400">
+          <p>
+            Poketopu bir ilan ve eşleşme platformudur. Ödeme, kargo ve teslimat işlemleri kullanıcılar
+            arasında doğrudan gerçekleşir; Poketopu bu işlemlere taraf değildir ve herhangi bir güvence sunmaz.
+          </p>
+          <p>
+            Poketopu; Nintendo, Creatures Inc., Game Freak veya The Pokémon Company ile bağlantılı,
+            onlar tarafından onaylanmış veya desteklenmiş değildir. Pokémon ve tüm ilgili isimler
+            sahiplerinin ticari markasıdır.
+          </p>
+          <p>© {new Date().getFullYear()} poketopu.com — Tüm hakları saklıdır.</p>
         </div>
       </div>
     </footer>
