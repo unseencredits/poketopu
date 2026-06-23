@@ -42,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="tr">
+    <html lang="tr" data-scroll-behavior="smooth">
       <body className={`${geist.className} bg-white text-gray-900 antialiased`}>
         <ScrollToTop />
         <Header />

@@ -119,7 +119,7 @@ export default function SearchFilters() {
                 defaultValue={params.get('puan_min') ?? ''}
                 onBlur={e => update('puan_min', e.target.value || null)}
                 min="1" max="10" step="0.5"
-                className="h-9 text-sm"
+                className="h-9"
               />
               <span className="text-gray-300 text-sm">—</span>
               <Input
@@ -128,7 +128,7 @@ export default function SearchFilters() {
                 defaultValue={params.get('puan_max') ?? ''}
                 onBlur={e => update('puan_max', e.target.value || null)}
                 min="1" max="10" step="0.5"
-                className="h-9 text-sm"
+                className="h-9"
               />
             </div>
           </div>
@@ -186,7 +186,7 @@ export default function SearchFilters() {
           placeholder="İstanbul, Ankara..."
           defaultValue={params.get('sehir') ?? ''}
           onBlur={e => update('sehir', e.target.value || null)}
-          className="h-9 text-sm"
+          className="h-9"
         />
       </div>
 
@@ -199,7 +199,7 @@ export default function SearchFilters() {
             placeholder="Min"
             defaultValue={params.get('min') ?? ''}
             onBlur={e => update('min', e.target.value || null)}
-            className="h-9 text-sm"
+            className="h-9"
           />
           <span className="text-gray-300 text-sm">—</span>
           <Input
@@ -207,7 +207,7 @@ export default function SearchFilters() {
             placeholder="Max"
             defaultValue={params.get('max') ?? ''}
             onBlur={e => update('max', e.target.value || null)}
-            className="h-9 text-sm"
+            className="h-9"
           />
         </div>
       </div>
