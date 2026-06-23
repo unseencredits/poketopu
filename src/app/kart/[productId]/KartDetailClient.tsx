@@ -17,6 +17,8 @@ interface SellerListing {
   id: string
   price: number
   condition: Condition
+  grader: string | null
+  grade: number | null
   notes: string | null
   photos: string[]
   created_at: string
@@ -159,8 +161,12 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
         {/* Seçili satıcı detayı */}
         {selected ? (
           <div className="rounded-2xl border border-primary/30 bg-red-50/30 p-4 max-w-sm mx-auto lg:mx-0 w-full">
-            <div className="flex items-center gap-3 mb-3">
-              <ConditionBadge condition={selected.condition} showLabel size="sm" />
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
+              {selected.grader && selected.grade != null ? (
+                <ConditionBadge grader={selected.grader} grade={selected.grade} />
+              ) : (
+                <ConditionBadge condition={selected.condition} showLabel size="sm" />
+              )}
               {selected.store && (
                 <Link
                   href={`/magaza/${selected.store.slug}`}
@@ -168,6 +174,15 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
                   onClick={(e) => e.stopPropagation()}
                 >
                   {selected.store.name}
+                </Link>
+              )}
+              {selected.store && (
+                <Link
+                  href={`/magaza/${selected.store.slug}`}
+                  className="ml-auto text-xs text-primary border border-primary/30 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Profili Gör →
                 </Link>
               )}
             </div>
@@ -226,10 +241,10 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
                 <div
                   key={listing.id}
                   onClick={() => selectSeller(listing.id)}
-                  className={`cursor-pointer rounded-2xl border p-4 transition-colors ${
+                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${
                     selectedId === listing.id
-                      ? 'border-primary bg-red-50/40'
-                      : 'border-gray-100 bg-white hover:border-gray-200'
+                      ? 'border-primary bg-red-50/40 shadow-sm'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                   }`}
                 >
                   {/* Üst satır: satıcı adı + durum + fiyat */}
@@ -239,7 +254,11 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
                         {listing.store?.name ?? 'Satıcı'}
                       </span>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <ConditionBadge condition={listing.condition} showLabel size="sm" />
+                        {listing.grader && listing.grade != null ? (
+                          <ConditionBadge grader={listing.grader} grade={listing.grade} />
+                        ) : (
+                          <ConditionBadge condition={listing.condition} showLabel size="sm" />
+                        )}
                         {listing.photos?.length > 0 && (
                           <span className="text-xs text-gray-400">{listing.photos.length} fotoğraf</span>
                         )}
@@ -266,6 +285,14 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
                         sellerId={listing.store.user_id}
                         compact
                       />
+                    )}
+                    {listing.store && (
+                      <Link
+                        href={`/magaza/${listing.store.slug}`}
+                        className="text-xs text-gray-400 hover:text-primary border border-gray-200 hover:border-primary/30 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        Profil
+                      </Link>
                     )}
                   </div>
                 </div>

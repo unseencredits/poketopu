@@ -14,6 +14,8 @@ interface SellerListing {
   id: string
   price: number
   condition: Condition
+  grader: string | null
+  grade: number | null
   notes: string | null
   photos: string[]
   created_at: string
@@ -49,7 +51,7 @@ export default async function KartPage({ params }: PageProps) {
       .single(),
     supabase
       .from('listings')
-      .select('id, price, condition, notes, photos, created_at, store:stores(id, name, slug, user_id)')
+      .select('id, price, condition, grader, grade, notes, photos, created_at, store:stores(id, name, slug, user_id)')
       .eq('product_id', productId)
       .eq('status', 'active')
       .order('price', { ascending: true }),

@@ -74,6 +74,25 @@ export async function deleteEvent(eventId: string) {
   revalidatePath('/admin')
 }
 
+export async function updateEvent(eventId: string, formData: FormData) {
+  const supabase = await requireAdmin()
+  const entryFee = formData.get('entry_fee')
+  const maxP = formData.get('max_participants')
+  await supabase.from('events').update({
+    title: String(formData.get('title') ?? '').trim(),
+    city: String(formData.get('city') ?? '').trim(),
+    location: (formData.get('location') as string)?.trim() || null,
+    event_date: String(formData.get('event_date') ?? ''),
+    format: String(formData.get('format') ?? ''),
+    status: String(formData.get('status') ?? ''),
+    entry_fee: entryFee ? parseFloat(String(entryFee)) : null,
+    max_participants: maxP ? parseInt(String(maxP)) : null,
+    description: (formData.get('description') as string)?.trim() || null,
+  }).eq('id', eventId)
+  revalidatePath('/admin')
+  revalidatePath('/etkinlikler')
+}
+
 // ── Partner Mağazalar ─────────────────────────────────────────────────────
 
 export async function approvePartnerStore(storeId: string) {
@@ -92,6 +111,25 @@ export async function rejectPartnerStore(storeId: string) {
 export async function deletePartnerStore(storeId: string) {
   const supabase = await requireAdmin()
   await supabase.from('partner_stores').delete().eq('id', storeId)
+  revalidatePath('/admin')
+  revalidatePath('/magazalar')
+}
+
+export async function updatePartnerStore(storeId: string, formData: FormData) {
+  const supabase = await requireAdmin()
+  await supabase.from('partner_stores').update({
+    name: String(formData.get('name') ?? '').trim(),
+    city: String(formData.get('city') ?? '').trim(),
+    store_type: String(formData.get('store_type') ?? 'retail'),
+    status: String(formData.get('status') ?? ''),
+    address: (formData.get('address') as string)?.trim() || null,
+    website: (formData.get('website') as string)?.trim() || null,
+    instagram: (formData.get('instagram') as string)?.trim() || null,
+    phone: (formData.get('phone') as string)?.trim() || null,
+    email: (formData.get('email') as string)?.trim() || null,
+    maps_url: (formData.get('maps_url') as string)?.trim() || null,
+    description: (formData.get('description') as string)?.trim() || null,
+  }).eq('id', storeId)
   revalidatePath('/admin')
   revalidatePath('/magazalar')
 }

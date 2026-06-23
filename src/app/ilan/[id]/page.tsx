@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, Store, Calendar } from 'lucide-react'
+import { ChevronLeft, Store, Calendar, MapPin, Package, Truck, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ConditionBadge from '@/components/shared/ConditionBadge'
 import MessageButton from '@/components/listing/MessageButton'
@@ -73,6 +73,36 @@ export default async function IlanPage({ params }: { params: Promise<{ id: strin
 
           {listing.notes && (
             <p className="text-sm text-gray-600 bg-gray-50 rounded-xl p-4 leading-relaxed">{listing.notes}</p>
+          )}
+
+          {/* Konum & kargo */}
+          {(listing.city || listing.shipping) && (
+            <div className="flex flex-wrap gap-2">
+              {listing.city && (
+                <span className="inline-flex items-center gap-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+                  <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  {listing.city}
+                </span>
+              )}
+              {listing.shipping === 'kargo' && (
+                <span className="inline-flex items-center gap-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+                  <Package className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  Kargo ile gönderim
+                </span>
+              )}
+              {listing.shipping === 'elden' && (
+                <span className="inline-flex items-center gap-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+                  <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  Elden teslim
+                </span>
+              )}
+              {listing.shipping === 'her_ikisi' && (
+                <span className="inline-flex items-center gap-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+                  <Truck className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  Kargo veya elden teslim
+                </span>
+              )}
+            </div>
           )}
 
           {/* Satıcı */}

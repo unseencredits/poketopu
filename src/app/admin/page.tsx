@@ -4,9 +4,9 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
   removeListing, banUser,
-  approveEvent, rejectEvent, deleteEvent,
+  approveEvent, rejectEvent, deleteEvent, updateEvent,
   removeTrade,
-  approvePartnerStore, rejectPartnerStore, deletePartnerStore,
+  approvePartnerStore, rejectPartnerStore, deletePartnerStore, updatePartnerStore,
 } from './actions'
 import { addFeatureCredits } from '@/app/actions/featuring'
 import DeleteUserButton from './DeleteUserButton'
@@ -59,14 +59,14 @@ export default async function AdminPage({ searchParams }: Props) {
   // ── Etkinlikler ───────────────────────────────────────────────────────────
   const { data: events } = await supabase
     .from('events')
-    .select('id, title, city, event_date, format, status, organizer:profiles!events_organizer_id_fkey(username)')
+    .select('id, title, city, location, event_date, format, max_participants, entry_fee, description, status, organizer:profiles!events_organizer_id_fkey(username)')
     .order('created_at', { ascending: false })
     .limit(100)
 
   // ── Partner Mağazalar ─────────────────────────────────────────────────────
   const { data: partnerStores } = await supabase
     .from('partner_stores')
-    .select('id, name, city, store_type, status, address, website, instagram, created_at')
+    .select('id, name, city, store_type, status, address, website, instagram, phone, email, maps_url, description, created_at')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -218,43 +218,107 @@ export default async function AdminPage({ searchParams }: Props) {
 
       {/* ── ETKİNLİKLER ──────────────────────────────────────────────────── */}
       {tab === 'etkinlikler' && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {(events ?? []).map(ev => {
             const org = (Array.isArray(ev.organizer) ? ev.organizer[0] : ev.organizer) as { username: string } | null
+            const isEditing = params.edit === ev.id
+            const evWithFields = ev as typeof ev & {
+              location?: string | null; max_participants?: number | null
+              entry_fee?: number | null; description?: string | null
+            }
             return (
-              <div key={ev.id} className={`bg-white border rounded-xl p-3 ${ev.status === 'pending' ? 'border-amber-100' : 'border-gray-100'}`}>
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-gray-900 truncate">{ev.title}</p>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                        ev.status === 'active' ? 'bg-green-100 text-green-700' :
-                        ev.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                        'bg-gray-100 text-gray-500'
-                      }`}>
-                        {ev.status === 'active' ? 'Aktif' : ev.status === 'pending' ? 'Bekliyor' : 'İptal'}
-                      </span>
+              <div key={ev.id} className={`bg-white border rounded-xl overflow-hidden ${ev.status === 'pending' ? 'border-amber-200' : 'border-gray-100'}`}>
+                <div className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <p className="text-sm font-semibold text-gray-900">{ev.title}</p>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                          ev.status === 'active' ? 'bg-green-100 text-green-700' :
+                          ev.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          'bg-gray-100 text-gray-500'
+                        }`}>
+                          {ev.status === 'active' ? 'Aktif' : ev.status === 'pending' ? 'Bekliyor' : 'İptal'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                        <span>📅 {new Date(ev.event_date).toLocaleString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>📍 {ev.city}{evWithFields.location ? ` — ${evWithFields.location}` : ''}</span>
+                        <span>🎮 {ev.format}</span>
+                        {evWithFields.entry_fee != null && <span>💰 {evWithFields.entry_fee} ₺ kayıt</span>}
+                        {evWithFields.max_participants != null && <span>👥 Max {evWithFields.max_participants} kişi</span>}
+                        <span>👤 @{org?.username ?? '—'}</span>
+                      </div>
+                      {evWithFields.description && (
+                        <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">{evWithFields.description}</p>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      @{org?.username ?? '—'} · {ev.city} · {new Date(ev.event_date).toLocaleDateString('tr-TR')}
-                    </p>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0 mt-0.5">
-                    {ev.status === 'pending' && (
-                      <>
-                        <form action={approveEvent.bind(null, ev.id)}>
-                          <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium">Onayla</button>
-                        </form>
-                        <form action={rejectEvent.bind(null, ev.id)}>
-                          <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium">Reddet</button>
-                        </form>
-                      </>
-                    )}
-                    <form action={deleteEvent.bind(null, ev.id)}>
-                      <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500">Sil</button>
-                    </form>
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      {ev.status === 'pending' && (
+                        <>
+                          <form action={approveEvent.bind(null, ev.id)}>
+                            <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium">Onayla</button>
+                          </form>
+                          <form action={rejectEvent.bind(null, ev.id)}>
+                            <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium">Reddet</button>
+                          </form>
+                        </>
+                      )}
+                      <Link href={isEditing ? `/admin?tab=etkinlikler` : `/admin?tab=etkinlikler&edit=${ev.id}`}>
+                        <button className={`w-full text-xs px-3 py-1 rounded-lg font-medium ${isEditing ? 'bg-gray-100 text-gray-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
+                          {isEditing ? 'Kapat' : 'Düzenle'}
+                        </button>
+                      </Link>
+                      <form action={deleteEvent.bind(null, ev.id)}>
+                        <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500">Sil</button>
+                      </form>
+                    </div>
                   </div>
                 </div>
+                {isEditing && (
+                  <form action={updateEvent.bind(null, ev.id)} className="border-t border-gray-100 p-4 bg-gray-50 space-y-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Düzenle</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: 'Başlık', name: 'title', value: ev.title },
+                        { label: 'Şehir', name: 'city', value: ev.city },
+                        { label: 'Mekan', name: 'location', value: evWithFields.location ?? '' },
+                        { label: 'Tarih', name: 'event_date', value: ev.event_date?.slice(0, 16), type: 'datetime-local' },
+                        { label: 'Kayıt Ücreti (₺)', name: 'entry_fee', value: evWithFields.entry_fee ?? '', type: 'number' },
+                        { label: 'Maks. Katılımcı', name: 'max_participants', value: evWithFields.max_participants ?? '', type: 'number' },
+                      ].map(({ label, name, value, type }) => (
+                        <div key={name}>
+                          <label className="text-xs text-gray-500 mb-1 block">{label}</label>
+                          <input type={type ?? 'text'} name={name} defaultValue={String(value)} className="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-primary bg-white" />
+                        </div>
+                      ))}
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Format</label>
+                        <select name="format" defaultValue={ev.format} className="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-primary bg-white">
+                          {['Standard', 'Expanded', 'Legacy', 'Draft', 'Prerelease', 'Casual', 'Diğer'].map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Durum</label>
+                        <select name="status" defaultValue={ev.status} className="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-primary bg-white">
+                          <option value="pending">Bekliyor</option>
+                          <option value="active">Aktif</option>
+                          <option value="cancelled">İptal</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Açıklama / Ödül</label>
+                      <textarea name="description" defaultValue={evWithFields.description ?? ''} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-primary resize-none bg-white" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="submit" className="h-8 px-4 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90">Kaydet</button>
+                      <Link href="/admin?tab=etkinlikler">
+                        <button type="button" className="h-8 px-4 rounded-lg border border-gray-200 text-xs text-gray-500 hover:bg-gray-100">İptal</button>
+                      </Link>
+                    </div>
+                  </form>
+                )}
               </div>
             )
           })}
@@ -264,49 +328,110 @@ export default async function AdminPage({ searchParams }: Props) {
 
       {/* ── PARTNER MAĞAZALAR ─────────────────────────────────────────────── */}
       {tab === 'magazalar' && (
-        <div className="space-y-2">
-          {(partnerStores ?? []).map(s => (
-            <div key={s.id} className={`bg-white border rounded-xl p-3 ${s.status === 'pending' ? 'border-amber-100' : 'border-gray-100'}`}>
-              <div className="flex items-start gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-gray-900">{s.name}</p>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                      s.status === 'approved' ? 'bg-green-100 text-green-700' :
-                      s.status === 'pending'  ? 'bg-amber-100 text-amber-700' :
-                      'bg-gray-100 text-gray-500'
-                    }`}>
-                      {s.status === 'approved' ? 'Onaylı' : s.status === 'pending' ? 'Bekliyor' : 'Reddedildi'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {s.city} ·{' '}
-                    {s.store_type === 'online' ? 'Online' : s.store_type === 'both' ? 'Fiziksel + Online' : 'Fiziksel'}
-                    {s.address && ` · ${s.address}`}
-                  </p>
-                  <div className="flex items-center gap-3 mt-1">
-                    {s.website && <a href={s.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline truncate max-w-[180px]">{s.website}</a>}
-                    {s.instagram && <span className="text-xs text-gray-400">@{s.instagram}</span>}
+        <div className="space-y-3">
+          {(partnerStores ?? []).map(s => {
+            const isEditing = params.edit === s.id
+            const sw = s as typeof s & { phone?: string | null; email?: string | null; maps_url?: string | null; description?: string | null }
+            const storeTypeLabel = s.store_type === 'online' ? 'Online' : s.store_type === 'both' ? 'Fiziksel + Online' : 'Fiziksel'
+            return (
+              <div key={s.id} className={`bg-white border rounded-xl overflow-hidden ${s.status === 'pending' ? 'border-amber-200' : 'border-gray-100'}`}>
+                <div className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <p className="text-sm font-semibold text-gray-900">{s.name}</p>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                          s.status === 'approved' ? 'bg-green-100 text-green-700' :
+                          s.status === 'pending'  ? 'bg-amber-100 text-amber-700' :
+                          'bg-gray-100 text-gray-500'
+                        }`}>
+                          {s.status === 'approved' ? 'Onaylı' : s.status === 'pending' ? 'Bekliyor' : 'Reddedildi'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-xs text-gray-500 mb-1">
+                        <span>🏙 {s.city} — {storeTypeLabel}</span>
+                        {s.address && <span>📍 {s.address}</span>}
+                        {sw.phone && <span>📞 {sw.phone}</span>}
+                        {sw.email && <span>✉️ {sw.email}</span>}
+                        {s.instagram && <span>📷 @{s.instagram}</span>}
+                        {s.website && <a href={s.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">🌐 {s.website}</a>}
+                        {sw.maps_url && <a href={sw.maps_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">📌 Maps</a>}
+                      </div>
+                      {sw.description && <p className="text-xs text-gray-400 leading-relaxed">{sw.description}</p>}
+                    </div>
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      {s.status === 'pending' && (
+                        <>
+                          <form action={approvePartnerStore.bind(null, s.id)}>
+                            <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium">Onayla</button>
+                          </form>
+                          <form action={rejectPartnerStore.bind(null, s.id)}>
+                            <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium">Reddet</button>
+                          </form>
+                        </>
+                      )}
+                      <Link href={isEditing ? `/admin?tab=magazalar` : `/admin?tab=magazalar&edit=${s.id}`}>
+                        <button className={`w-full text-xs px-3 py-1 rounded-lg font-medium ${isEditing ? 'bg-gray-100 text-gray-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
+                          {isEditing ? 'Kapat' : 'Düzenle'}
+                        </button>
+                      </Link>
+                      <form action={deletePartnerStore.bind(null, s.id)}>
+                        <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500">Sil</button>
+                      </form>
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  {s.status === 'pending' && (
-                    <>
-                      <form action={approvePartnerStore.bind(null, s.id)}>
-                        <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium">Onayla</button>
-                      </form>
-                      <form action={rejectPartnerStore.bind(null, s.id)}>
-                        <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium">Reddet</button>
-                      </form>
-                    </>
-                  )}
-                  <form action={deletePartnerStore.bind(null, s.id)}>
-                    <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500">Sil</button>
+                {isEditing && (
+                  <form action={updatePartnerStore.bind(null, s.id)} className="border-t border-gray-100 p-4 bg-gray-50 space-y-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Düzenle</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: 'Mağaza Adı', name: 'name', value: s.name },
+                        { label: 'Şehir', name: 'city', value: s.city },
+                        { label: 'Adres', name: 'address', value: s.address ?? '' },
+                        { label: 'Telefon', name: 'phone', value: sw.phone ?? '' },
+                        { label: 'E-posta', name: 'email', value: sw.email ?? '', type: 'email' },
+                        { label: 'Web Sitesi', name: 'website', value: s.website ?? '', type: 'url' },
+                        { label: 'Instagram', name: 'instagram', value: s.instagram ?? '' },
+                        { label: 'Google Maps URL', name: 'maps_url', value: sw.maps_url ?? '', type: 'url' },
+                      ].map(({ label, name, value, type }) => (
+                        <div key={name}>
+                          <label className="text-xs text-gray-500 mb-1 block">{label}</label>
+                          <input type={type ?? 'text'} name={name} defaultValue={String(value)} className="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-primary bg-white" />
+                        </div>
+                      ))}
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Mağaza Türü</label>
+                        <select name="store_type" defaultValue={s.store_type} className="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-primary bg-white">
+                          <option value="retail">Fiziksel</option>
+                          <option value="online">Online</option>
+                          <option value="both">Fiziksel + Online</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Durum</label>
+                        <select name="status" defaultValue={s.status} className="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-primary bg-white">
+                          <option value="pending">Bekliyor</option>
+                          <option value="approved">Onaylı</option>
+                          <option value="rejected">Reddedildi</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Açıklama</label>
+                      <textarea name="description" defaultValue={sw.description ?? ''} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-primary resize-none bg-white" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="submit" className="h-8 px-4 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90">Kaydet</button>
+                      <Link href="/admin?tab=magazalar">
+                        <button type="button" className="h-8 px-4 rounded-lg border border-gray-200 text-xs text-gray-500 hover:bg-gray-100">İptal</button>
+                      </Link>
+                    </div>
                   </form>
-                </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
           {(partnerStores ?? []).length === 0 && <p className="text-sm text-gray-400 text-center py-8">Mağaza başvurusu yok</p>}
         </div>
       )}
