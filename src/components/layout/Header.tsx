@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Search, MessageCircle, User, Plus, Loader2, Menu, X, ChevronRight, Bell, Tag, ArrowLeftRight, CheckCircle, XCircle, ArrowRightLeft, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -295,7 +296,7 @@ export default function Header() {
 
             {/* Logo */}
             <Link href="/" className="flex-shrink-0">
-              <span className="text-xl font-bold text-primary tracking-tight">poketopu</span>
+              <Image src="/logo-colored.svg" alt="poketopu" width={140} height={33} priority className="h-8 w-auto" />
             </Link>
 
             {/* Arama — orta */}
@@ -478,7 +479,7 @@ export default function Header() {
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <div className="absolute top-0 left-0 bottom-0 w-72 bg-white shadow-xl flex flex-col">
             <div className="flex items-center justify-between px-5 h-14 border-b border-gray-100">
-              <span className="text-lg font-bold text-primary">poketopu</span>
+              <Image src="/logo-colored.svg" alt="poketopu" width={120} height={28} className="h-7 w-auto" />
               <button onClick={() => setMobileOpen(false)} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-gray-50 text-gray-400">
                 <X className="h-4 w-4" />
               </button>
