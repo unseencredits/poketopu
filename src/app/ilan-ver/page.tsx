@@ -11,6 +11,7 @@ import PhotoUploadStep from '@/components/listing/PhotoUploadStep'
 import type { Category, Condition } from '@/types'
 import type { TCGCard } from '@/lib/pokemon-tcg'
 import { checkModeration } from '@/app/actions/moderation'
+import { revalidateAfterListing } from '@/app/actions/revalidate'
 
 type Step = 'category' | 'product' | 'details' | 'photos' | 'publishing'
 
@@ -153,6 +154,7 @@ export default function IlanVerPage() {
       return
     }
 
+    await revalidateAfterListing()
     router.push(`/ilan/${listing.id}?yeni=1`)
   }
 

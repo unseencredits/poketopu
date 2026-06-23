@@ -127,6 +127,7 @@ export default function ProfilPage() {
   const [soldQty, setSoldQty] = useState(1)
   const [markingSold, setMarkingSold] = useState(false)
   const [featuringId, setFeaturingId] = useState<string | null>(null)
+  const [featureNotif, setFeatureNotif] = useState<{ id: string; type: 'success' | 'error'; msg: string } | null>(null)
 
   // Satın almadım
   const [disclaimId, setDisclaimId] = useState<string | null>(null)
@@ -788,6 +789,12 @@ export default function ProfilPage() {
                             {listing.quantity} adet
                           </span>
                         )}
+                        {listing.featured_until && new Date(listing.featured_until) > new Date() && (
+                          <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                            <Sparkles className="h-2.5 w-2.5" />
+                            {Math.ceil((new Date(listing.featured_until).getTime() - Date.now()) / 86400000)} gün kaldı
+                          </span>
+                        )}
                         <span className="text-sm font-bold text-gray-900">
                           {listing.price.toLocaleString('tr-TR')} ₺
                         </span>
@@ -982,26 +989,42 @@ export default function ProfilPage() {
                         )}
 
                         {/* Öne Çıkar */}
-                        {listing.status === 'active' && (
-                          <button
-                            onClick={async () => {
-                              setFeaturingId(listing.id)
-                              const res = await featureListing(listing.id)
-                              setFeaturingId(null)
-                              if (!res.ok) alert(res.error)
-                            }}
-                            disabled={featuringId === listing.id}
-                            title={listing.featured_until && new Date(listing.featured_until) > new Date()
-                              ? `Öne çıkıyor — ${new Date(listing.featured_until).toLocaleDateString('tr-TR')}'e kadar`
-                              : 'Öne Çıkar (1 kredi)'}
-                            className={`p-2 rounded-xl transition-colors ${
-                              listing.featured_until && new Date(listing.featured_until) > new Date()
-                                ? 'text-amber-500'
-                                : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
-                            }`}>
-                            <Sparkles className="h-4 w-4" />
-                          </button>
-                        )}
+                        {listing.status === 'active' && (() => {
+                          const isFeaturedNow = !!(listing.featured_until && new Date(listing.featured_until) > new Date())
+                          const isLoading = featuringId === listing.id
+                          return (
+                            <button
+                              onClick={async () => {
+                                setFeaturingId(listing.id)
+                                setFeatureNotif(null)
+                                const res = await featureListing(listing.id)
+                                setFeaturingId(null)
+                                if (res.ok && res.featuredUntil) {
+                                  setListings(prev => prev.map(l =>
+                                    l.id === listing.id ? { ...l, featured_until: res.featuredUntil! } : l
+                                  ))
+                                  setFeatureNotif({ id: listing.id, type: 'success', msg: '7 gün öne çıkarıldı!' })
+                                  setTimeout(() => setFeatureNotif(n => n?.id === listing.id ? null : n), 4000)
+                                } else if (!res.ok) {
+                                  setFeatureNotif({ id: listing.id, type: 'error', msg: res.error ?? 'Hata oluştu.' })
+                                  setTimeout(() => setFeatureNotif(n => n?.id === listing.id ? null : n), 5000)
+                                }
+                              }}
+                              disabled={isLoading}
+                              title={isFeaturedNow
+                                ? `Öne çıkıyor — ${new Date(listing.featured_until!).toLocaleDateString('tr-TR')}'e kadar · 1 kredi daha ekleyebilirsin`
+                                : 'Öne Çıkar (1 kredi)'}
+                              className={`p-2 rounded-xl transition-colors ${
+                                isFeaturedNow
+                                  ? 'text-amber-500 hover:bg-amber-50'
+                                  : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
+                              }`}>
+                              {isLoading
+                                ? <div className="h-4 w-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                                : <Sparkles className="h-4 w-4" />}
+                            </button>
+                          )
+                        })()}
 
                         {/* Sil */}
                         <button onClick={() => setConfirmDeleteId(listing.id)} title="Sil"
@@ -1020,6 +1043,19 @@ export default function ProfilPage() {
                         Evet, Sil
                       </button>
                       <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-gray-500 hover:text-gray-700">İptal</button>
+                    </div>
+                  )}
+
+                  {featureNotif?.id === listing.id && (
+                    <div className={`mx-4 mb-3 px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm ${
+                      featureNotif.type === 'success'
+                        ? 'bg-amber-50 border border-amber-100 text-amber-700'
+                        : 'bg-red-50 border border-red-100 text-red-700'
+                    }`}>
+                      {featureNotif.type === 'success'
+                        ? <Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+                        : <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />}
+                      {featureNotif.msg}
                     </div>
                   )}
                 </div>

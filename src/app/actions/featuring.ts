@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export async function featureListing(listingId: string): Promise<{ ok: boolean; error?: string }> {
+export async function featureListing(listingId: string): Promise<{ ok: boolean; error?: string; featuredUntil?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Oturum bulunamadı.' }
@@ -38,7 +38,7 @@ export async function featureListing(listingId: string): Promise<{ ok: boolean; 
   revalidatePath('/profil')
   revalidatePath('/')
   revalidatePath('/ara')
-  return { ok: true }
+  return { ok: true, featuredUntil: featuredUntil.toISOString() }
 }
 
 export async function addFeatureCredits(userId: string, amount: number) {

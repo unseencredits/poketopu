@@ -70,7 +70,7 @@ const getSetListingCounts = unstable_cache(
     return counts
   },
   ['set-listing-counts'],
-  { revalidate: 300 },
+  { revalidate: 300, tags: ['kartlar-listing'] },
 )
 
 // Set kartları 2 dk cache'lenir; condition verisi de saklanır
@@ -119,7 +119,7 @@ const getProductsInSetCached = unstable_cache(
     return Array.from(map.values())
   },
   ['set-products'],
-  { revalidate: 120 },
+  { revalidate: 120, tags: ['kartlar-listing'] },
 )
 
 async function getProductsInSet(
