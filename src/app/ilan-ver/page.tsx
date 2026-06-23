@@ -10,6 +10,7 @@ import DetailsStep from '@/components/listing/DetailsStep'
 import PhotoUploadStep from '@/components/listing/PhotoUploadStep'
 import type { Category, Condition } from '@/types'
 import type { TCGCard } from '@/lib/pokemon-tcg'
+import { checkModeration } from '@/app/actions/moderation'
 
 type Step = 'category' | 'product' | 'details' | 'photos' | 'publishing'
 
@@ -88,6 +89,19 @@ export default function IlanVerPage() {
     if (!storeId) return
     setStep('publishing')
     setError(null)
+
+    // İçerik moderasyonu — metin + fotoğrafları OpenAI ile tara
+    const textsToCheck = [
+      data.customTitle ?? '',
+      data.customDescription ?? '',
+      data.notes ?? '',
+    ]
+    const { flagged, reason } = await checkModeration(textsToCheck, photoUrls)
+    if (flagged) {
+      setError(`İlan içeriği uygunsuz bulundu (${reason ?? 'uygunsuz içerik'}). Lütfen içeriği düzenleyip tekrar dene.`)
+      setStep('photos')
+      return
+    }
 
     const supabase = createClient()
 
