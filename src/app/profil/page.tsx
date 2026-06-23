@@ -473,6 +473,7 @@ export default function ProfilPage() {
     if (!error) {
       setListings(prev => prev.filter(l => l.id !== listingId))
       setConfirmDeleteId(null)
+      router.refresh()
     }
   }
 

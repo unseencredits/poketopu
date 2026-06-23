@@ -47,6 +47,8 @@ export default function IlanVerPage() {
   const [storeId, setStoreId] = useState<string | null>(null)
   const [data, setData] = useState<ListingData>({})
   const [error, setError] = useState<string | null>(null)
+  const [detailsError, setDetailsError] = useState<string | null>(null)
+  const [checkingModeration, setCheckingModeration] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -90,17 +92,14 @@ export default function IlanVerPage() {
     setStep('publishing')
     setError(null)
 
-    // İçerik moderasyonu — metin + fotoğrafları OpenAI ile tara
-    const textsToCheck = [
-      data.customTitle ?? '',
-      data.customDescription ?? '',
-      data.notes ?? '',
-    ]
-    const { flagged, reason } = await checkModeration(textsToCheck, photoUrls)
-    if (flagged) {
-      setError(`İlan içeriği uygunsuz bulundu (${reason ?? 'uygunsuz içerik'}). Lütfen içeriği düzenleyip tekrar dene.`)
-      setStep('photos')
-      return
+    // Fotoğraf moderasyonu (metin, detaylar adımında zaten kontrol edildi)
+    if (photoUrls.length > 0) {
+      const { flagged, reason } = await checkModeration([], photoUrls)
+      if (flagged) {
+        setError(`Fotoğraf uygunsuz bulundu (${reason ?? 'uygunsuz içerik'}). Lütfen kaldırıp tekrar dene.`)
+        setStep('photos')
+        return
+      }
     }
 
     const supabase = createClient()
@@ -179,16 +178,38 @@ export default function IlanVerPage() {
 
           <h1 className="text-2xl font-bold text-gray-900">İlan Ver</h1>
 
-          {/* Adım çizgisi */}
+          {/* Adım göstergesi */}
           {step !== 'publishing' && (
-            <div className="flex items-center gap-1 mt-4">
-              {STEP_ORDER.map((s, idx) => (
-                <div key={s} className="flex items-center gap-1 flex-1">
-                  <div className={`h-1.5 flex-1 rounded-full transition-all ${
-                    idx <= currentStepIdx ? 'bg-primary' : 'bg-gray-200'
-                  }`} />
-                </div>
-              ))}
+            <div className="flex items-center mt-4">
+              {STEP_ORDER.flatMap((s, idx) => {
+                const isCompleted = idx < currentStepIdx
+                const isCurrent = idx === currentStepIdx
+                const isClickable = isCompleted && !checkingModeration
+                const items = []
+                if (idx > 0) {
+                  items.push(
+                    <div key={`line-${idx}`} className={`h-px flex-1 ${idx <= currentStepIdx ? 'bg-primary' : 'bg-gray-200'}`} />
+                  )
+                }
+                items.push(
+                  <button
+                    key={s}
+                    onClick={() => { if (isClickable) setStep(s) }}
+                    disabled={!isClickable}
+                    title={STEP_LABELS[s]}
+                    className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 transition-all ${
+                      isCurrent
+                        ? 'bg-primary text-white cursor-default'
+                        : isCompleted
+                          ? 'bg-primary/20 text-primary hover:bg-primary/30 cursor-pointer'
+                          : 'bg-gray-100 text-gray-300 cursor-default'
+                    }`}
+                  >
+                    {isCompleted ? <Check className="h-3 w-3" /> : idx + 1}
+                  </button>
+                )
+                return items
+              })}
             </div>
           )}
           {step !== 'publishing' && (
@@ -220,14 +241,37 @@ export default function IlanVerPage() {
           )}
 
           {step === 'details' && data.category && (
-            <DetailsStep
-              category={data.category}
-              productId={data.card?.id}
-              onNext={details => {
-                setData(d => ({ ...d, ...details }))
-                setStep('photos')
-              }}
-            />
+            <div>
+              <div className={checkingModeration ? 'pointer-events-none opacity-50' : ''}>
+                <DetailsStep
+                  category={data.category}
+                  productId={data.card?.id}
+                  onNext={async details => {
+                    setData(d => ({ ...d, ...details }))
+                    setDetailsError(null)
+                    setCheckingModeration(true)
+                    const texts = [data.customTitle ?? '', data.customDescription ?? '', details.notes ?? '']
+                    const { flagged, reason } = await checkModeration(texts, [])
+                    setCheckingModeration(false)
+                    if (flagged) {
+                      setDetailsError(`İçerik uygunsuz bulundu (${reason ?? 'uygunsuz içerik'}). Lütfen düzenleyip tekrar dene.`)
+                    } else {
+                      setDetailsError(null)
+                      setStep('photos')
+                    }
+                  }}
+                />
+              </div>
+              {checkingModeration && (
+                <div className="flex items-center justify-center gap-2 mt-3 text-sm text-gray-500">
+                  <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  İçerik kontrol ediliyor...
+                </div>
+              )}
+              {detailsError && (
+                <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mt-3">{detailsError}</p>
+              )}
+            </div>
           )}
 
           {step === 'photos' && userId && (
