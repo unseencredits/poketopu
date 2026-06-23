@@ -244,7 +244,9 @@ export default function IlanVerPage() {
           <div className="mt-4 p-4 rounded-2xl bg-white border border-gray-100 flex items-center gap-3">
             <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
             <div className="min-w-0">
-              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{data.category}</p>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+                {{ card: 'Kart', sealed: 'Sealed', graded: 'Derecelendirilmiş', accessory: 'Aksesuar' }[data.category!] ?? data.category}
+              </p>
               <p className="text-sm font-medium text-gray-900 truncate">
                 {data.card?.name ?? data.customTitle ?? '—'}
               </p>
