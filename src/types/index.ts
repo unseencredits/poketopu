@@ -27,6 +27,7 @@ export interface Profile {
   created_at: string
   feature_credits: number
   phone: string | null
+  collection_visibility: 'private' | 'public'
 }
 
 export interface Store {

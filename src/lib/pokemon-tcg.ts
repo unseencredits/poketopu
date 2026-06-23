@@ -61,13 +61,22 @@ export async function searchCards(
   page = 1,
   setId?: string,
 ): Promise<{ data: TCGCard[]; totalCount: number }> {
-  let q = buildSearchQuery(query)
-  if (setId) q += ` set.id:${setId}`
+  const trimmed = query.trim()
+  let q: string
+
+  if (!trimmed || trimmed === '*') {
+    // Set tarama modu: metin sorgusu yok, sadece sete göre filtrele
+    q = setId ? `set.id:${setId}` : 'name:*'
+  } else {
+    q = buildSearchQuery(trimmed)
+    if (setId) q += ` set.id:${setId}`
+  }
+
   const encoded = encodeURIComponent(q)
-  // Set seçiliyken daha fazla sonuç getir (set içindeki sayı az)
-  const pageSize = setId ? 30 : 24
+  // Set taramasında tüm kartları çek (max 250), normal aramada daha az
+  const pageSize = setId && (!trimmed || trimmed === '*') ? 250 : setId ? 30 : 24
   const res = await fetch(
-    `${BASE}/cards?q=${encoded}&page=${page}&pageSize=${pageSize}&select=id,name,number,rarity,supertype,subtypes,types,hp,images,set`,
+    `${BASE}/cards?q=${encoded}&page=${page}&pageSize=${pageSize}&orderBy=number&select=id,name,number,rarity,supertype,subtypes,types,hp,images,set`,
     { next: { revalidate: 3600 } }
   )
   if (!res.ok) return { data: [], totalCount: 0 }

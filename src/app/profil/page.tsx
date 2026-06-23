@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
 
 import { featureListing } from '@/app/actions/featuring'
+import KoleksiyonTab from '@/components/collection/KoleksiyonTab'
 
 interface OfferItem {
   id: string
@@ -59,7 +60,7 @@ interface CollectionItem {
   quantity: number
   condition: string | null
   created_at: string
-  product: { id: string; name: string; set_name: string | null; image_url: string | null; number: string | null } | null
+  product: { id: string; name: string; set_name: string | null; set_id: string | null; image_url: string | null; number: string | null } | null
 }
 
 interface Purchase {
@@ -101,6 +102,7 @@ export default function ProfilPage() {
   const [myTrades, setMyTrades] = useState<Trade[]>([])
   const [myCollections, setMyCollections] = useState<CollectionItem[]>([])
   const [myWatchlist, setMyWatchlist] = useState<WatchlistItem[]>([])
+  const [collectionVisibility, setCollectionVisibility] = useState<'private' | 'public'>('private')
   const [tradeMatches, setTradeMatches] = useState<TradeMatch[]>([])
   const [offers, setOffers] = useState<OfferItem[]>([])
 
@@ -149,7 +151,7 @@ export default function ProfilPage() {
 
   useEffect(() => {
     const stored: Record<string, number> = {}
-    for (const tab of ['ilanlarim', 'alimlarim', 'takaslarim', 'koleksiyon', 'teklifler']) {
+    for (const tab of ['ilanlarim', 'alimlarim', 'takaslarim', 'koleksiyon', 'fiyatlar', 'teklifler']) {
       stored[tab] = parseInt(localStorage.getItem(`tab_seen_${tab}`) || '0')
     }
     setTabSeen(stored)
@@ -180,6 +182,7 @@ export default function ProfilPage() {
       ])
 
       setProfile(prof)
+      setCollectionVisibility((prof as Profile & { collection_visibility?: 'private' | 'public' })?.collection_visibility ?? 'private')
       setStore(st)
 
       if (st) {
@@ -300,10 +303,10 @@ export default function ProfilPage() {
       // Koleksiyonum
       const { data: colData } = await supabase
         .from('collections')
-        .select('id, quantity, condition, created_at, product:products(id,name,set_name,image_url,number)')
+        .select('id, quantity, condition, created_at, product:products(id,name,set_name,set_id,image_url,number)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(200)
       setMyCollections((colData ?? []) as unknown as CollectionItem[])
 
       // Daha önce verilmiş puanlar
@@ -698,6 +701,7 @@ export default function ProfilPage() {
                 { value: 'alimlarim',  label: 'Alımlarım',  newCount: countNew(purchases, 'alimlarim'), totalCount: purchases.length },
                 { value: 'takaslarim', label: 'Takas',       newCount: newTrades, totalCount: myTrades.length },
                 { value: 'koleksiyon', label: 'Koleksiyon',  newCount: 0,         totalCount: myCollections.length },
+                { value: 'fiyatlar',   label: 'Fiyat Takibi', newCount: 0,       totalCount: myWatchlist.length },
                 { value: 'teklifler',  label: 'Teklifler',   newCount: newOffers, totalCount: pendingOffers.length },
               ].map(({ value, label, newCount, totalCount }) => (
                 <TabsTrigger
@@ -1233,48 +1237,18 @@ export default function ProfilPage() {
         </TabsContent>
 
         {/* ── KOLEKSİYON ── */}
-        <TabsContent value="koleksiyon" className="mt-3 space-y-3">
-          {/* Koleksiyonum */}
-          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 p-4 border-b border-gray-50">
-              <BookMarked className="h-4 w-4 text-gray-400" />
-              <p className="font-semibold text-gray-900 text-sm">Koleksiyonum</p>
-              <span className="text-xs text-gray-400">({myCollections.length} kart)</span>
-            </div>
-            {myCollections.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-gray-400">Koleksiyonun boş.</p>
-                <Link href="/kartlar" className="text-sm text-primary hover:underline mt-1 inline-block">Kart ekle →</Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 p-4">
-                {myCollections.map(item => {
-                  const name = item.product?.name ?? '—'
-                  const img = item.product?.image_url
-                  const condLabel = item.condition?.toUpperCase() ?? null
-                  return (
-                    <div key={item.id} className="relative group">
-                      <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden" style={{ aspectRatio: '5/7' }}>
-                        {img ? <img src={img} alt={name} className="w-full h-full object-contain p-1" /> : <div className="w-full h-full flex items-center justify-center"><div className="w-8 h-12 rounded bg-gray-200" /></div>}
-                        {item.quantity > 1 && <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">{item.quantity}</span>}
-                        {condLabel && <span className="absolute bottom-1 left-1 px-1 py-0.5 rounded text-[10px] font-semibold bg-black/50 text-white">{condLabel}</span>}
-                      </div>
-                      <p className="text-[10px] text-gray-700 font-medium mt-1 truncate">{name}</p>
-                      <button onClick={async () => {
-                        const supabase = createClient()
-                        await supabase.from('collections').delete().eq('id', item.id)
-                        setMyCollections(prev => prev.filter(c => c.id !== item.id))
-                      }} className="absolute top-1 left-1 h-5 w-5 rounded-full bg-white/80 text-red-400 items-center justify-center hidden group-hover:flex shadow-sm">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+        <TabsContent value="koleksiyon" className="mt-3">
+          {userId && (
+            <KoleksiyonTab
+              userId={userId}
+              initialCollections={myCollections}
+              initialVisibility={collectionVisibility}
+            />
+          )}
+        </TabsContent>
 
-          {/* Takip Listem */}
+        {/* ── FİYAT TAKİBİ ── */}
+        <TabsContent value="fiyatlar" className="mt-3">
           <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
             <div className="flex items-center gap-2 p-4 border-b border-gray-50">
               <Bell className="h-4 w-4 text-gray-400" />
