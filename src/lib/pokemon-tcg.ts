@@ -25,24 +25,31 @@ export interface TCGSet {
 function buildSearchQuery(q: string): string {
   const trimmed = q.trim()
 
-  // Sadece numara: "19", "019/68", "SV001"
-  if (/^[A-Za-z]{0,3}\d{1,4}(\/\d+)?$/.test(trimmed)) {
-    const num = trimmed.split('/')[0].replace(/^0+/, '') || '0'
+  // "X/Y" formatı varsa: set.printedTotal ile tam eşleşme
+  // "19/68" → number:19 set.printedTotal:68 → tam olarak o set + numara
+  // "pikachu 19/68" veya "pikachu hidden fates 19/68" da aynı mantıkla çalışır
+  const slashMatch = trimmed.match(/\b(\d{1,4})\/(\d+)\b/)
+  if (slashMatch) {
+    const num = slashMatch[1].replace(/^0+/, '') || '0'
+    const total = slashMatch[2]
+    return `number:${num} set.printedTotal:${total}`
+  }
+
+  // Sadece numara (toplam olmadan): "19", "SV001"
+  if (/^[A-Za-z]{0,3}\d{1,4}$/.test(trimmed)) {
+    const num = trimmed.replace(/^0+/, '') || '0'
     return `number:${num}`
   }
 
-  // Numara ile biten sorgu: "pikachu 19/68", "pikachu hidden fates 19/68"
-  const m = trimmed.match(/^(.+?)\s+([A-Za-z]{0,3}\d{1,4}(?:\/\d+)?)$/)
+  // Ad + numara: "pikachu 25", "charizard ex 4"
+  const m = trimmed.match(/^(.+?)\s+([A-Za-z]{0,3}\d{1,4})$/)
   if (m) {
     const textPart = m[1].trim()
-    const num = m[2].split('/')[0].replace(/^0+/, '') || '0'
+    const num = m[2].replace(/^0+/, '') || '0'
     const wordCount = textPart.split(/\s+/).length
     if (wordCount <= 2) {
-      // "pikachu 19/68", "charizard ex 19/68" → kart adı + numara
       return `name:"${textPart}*" number:${num}`
     }
-    // "pikachu hidden fates 19/68", "hidden fates pikachu 19/68"
-    // → set adı karışmış, sadece numarayla ara (set seçiliyse birlikte kesin sonuç verir)
     return `number:${num}`
   }
 
@@ -58,7 +65,7 @@ export async function searchCards(
   if (setId) q += ` set.id:${setId}`
   const encoded = encodeURIComponent(q)
   // Set seçiliyken daha fazla sonuç getir (set içindeki sayı az)
-  const pageSize = setId ? 20 : 12
+  const pageSize = setId ? 30 : 24
   const res = await fetch(
     `${BASE}/cards?q=${encoded}&page=${page}&pageSize=${pageSize}&select=id,name,number,rarity,supertype,subtypes,types,hp,images,set`,
     { next: { revalidate: 3600 } }
