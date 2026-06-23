@@ -13,7 +13,7 @@ import { verifyTurnstile } from '@/app/actions/turnstile'
 
 export default function KayitPage() {
   const router = useRouter()
-  const [form, setForm] = useState({ username: '', email: '', password: '' })
+  const [form, setForm] = useState({ username: '', email: '', password: '', passwordConfirm: '' })
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,6 +48,12 @@ export default function KayitPage() {
 
     if (form.password.length < 6) {
       setError('Şifre en az 6 karakter olmalıdır.')
+      setLoading(false)
+      return
+    }
+
+    if (form.password !== form.passwordConfirm) {
+      setError('Şifreler eşleşmiyor.')
       setLoading(false)
       return
     }
@@ -121,6 +127,19 @@ export default function KayitPage() {
               placeholder="En az 6 karakter"
               required
               minLength={6}
+              className="h-11"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="passwordConfirm">Şifre Tekrar</Label>
+            <Input
+              id="passwordConfirm"
+              type="password"
+              value={form.passwordConfirm}
+              onChange={e => set('passwordConfirm', e.target.value)}
+              placeholder="Şifreyi tekrar gir"
+              required
               className="h-11"
             />
           </div>
