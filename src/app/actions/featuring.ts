@@ -51,3 +51,14 @@ export async function addFeatureCredits(userId: string, amount: number) {
   await supabase.rpc('increment_feature_credits', { target_user_id: userId, amount })
   revalidatePath('/admin')
 }
+
+export async function setFeatureCredits(userId: string, amount: number) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single()
+  if (!profile?.is_admin) return
+
+  await supabase.from('profiles').update({ feature_credits: Math.max(0, amount) }).eq('id', userId)
+  revalidatePath('/admin')
+}

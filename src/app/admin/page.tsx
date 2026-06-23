@@ -9,6 +9,7 @@ import {
 } from './actions'
 import { addFeatureCredits } from '@/app/actions/featuring'
 import DeleteUserButton from './DeleteUserButton'
+import FeatureCreditButton from './FeatureCreditButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +71,7 @@ export default async function AdminPage({ searchParams }: Props) {
   // ── Kullanıcılar ──────────────────────────────────────────────────────────
   const { data: users } = await supabase
     .from('profiles')
-    .select('id, username, created_at, is_admin')
+    .select('id, username, created_at, is_admin, feature_credits')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -305,11 +306,9 @@ export default async function AdminPage({ searchParams }: Props) {
                 </p>
                 <p className="text-xs text-gray-400">{new Date(u.created_at).toLocaleDateString('tr-TR')}</p>
               </div>
-              <div className="flex gap-1 flex-shrink-0">
+              <div className="flex gap-1 flex-shrink-0 flex-wrap justify-end">
                 <Link href={`/magaza/${u.username}`} target="_blank" className="text-xs px-2 py-1 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100">Profil</Link>
-                <form action={addFeatureCredits.bind(null, u.id, 3)}>
-                  <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100">+3 Kredi</button>
-                </form>
+                <FeatureCreditButton userId={u.id} currentCredits={u.feature_credits ?? 0} />
                 {!u.is_admin && (
                   <>
                     <form action={banUser.bind(null, u.id)}>
