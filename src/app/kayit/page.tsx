@@ -1,24 +1,28 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
+import TurnstileWidget from '@/components/shared/TurnstileWidget'
+import { verifyTurnstile } from '@/app/actions/turnstile'
 
 export default function KayitPage() {
   const router = useRouter()
   const [form, setForm] = useState({ username: '', email: '', password: '' })
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data: { user } }) => {
       if (user) router.replace('/profil')
     })
   }, [router])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   function set(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -28,6 +32,19 @@ export default function KayitPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    if (!turnstileToken) {
+      setError('Lütfen robot doğrulamasını tamamlayın.')
+      setLoading(false)
+      return
+    }
+
+    const ok = await verifyTurnstile(turnstileToken)
+    if (!ok) {
+      setError('Doğrulama başarısız. Sayfayı yenileyip tekrar deneyin.')
+      setLoading(false)
+      return
+    }
 
     if (form.password.length < 6) {
       setError('Şifre en az 6 karakter olmalıdır.')
@@ -43,11 +60,7 @@ export default function KayitPage() {
     })
 
     if (error) {
-      if (error.message.includes('already')) {
-        setError('Bu e-posta adresi zaten kayıtlı.')
-      } else {
-        setError('Kayıt sırasında bir hata oluştu. Tekrar dene.')
-      }
+      setError(error.message.includes('already') ? 'Bu e-posta adresi zaten kayıtlı.' : 'Kayıt sırasında bir hata oluştu. Tekrar dene.')
       setLoading(false)
       return
     }
@@ -60,7 +73,9 @@ export default function KayitPage() {
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-primary">poketopu</Link>
+          <Link href="/">
+            <Image src="/logo-colored.svg" alt="Poketopu" width={140} height={33} className="h-8 w-auto mx-auto" />
+          </Link>
           <h1 className="text-xl font-bold text-gray-900 mt-6">Hesap Oluştur</h1>
           <p className="text-sm text-gray-500 mt-1">Beta sürecinde tamamen ücretsiz</p>
         </div>
@@ -108,13 +123,15 @@ export default function KayitPage() {
             />
           </div>
 
+          <TurnstileWidget onVerify={setTurnstileToken} />
+
           {error && (
             <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           )}
 
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !turnstileToken}
             className="w-full h-11 bg-primary hover:bg-primary/90 text-white rounded-xl"
           >
             {loading ? 'Hesap oluşturuluyor...' : 'Üye Ol'}
@@ -129,9 +146,7 @@ export default function KayitPage() {
 
         <p className="text-center text-sm text-gray-500 mt-4">
           Zaten hesabın var mı?{' '}
-          <Link href="/giris" className="text-primary hover:underline font-medium">
-            Giriş yap
-          </Link>
+          <Link href="/giris" className="text-primary hover:underline font-medium">Giriş yap</Link>
         </p>
       </div>
     </div>
