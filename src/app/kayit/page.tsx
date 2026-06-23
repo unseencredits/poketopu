@@ -56,7 +56,10 @@ export default function KayitPage() {
     const { error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { username: form.username } },
+      options: {
+        data: { username: form.username },
+        emailRedirectTo: `${window.location.origin}/auth/callback?redirect_to=/email-onay`,
+      },
     })
 
     if (error) {
@@ -65,8 +68,7 @@ export default function KayitPage() {
       return
     }
 
-    router.push('/?kayit=basarili')
-    router.refresh()
+    router.push('/kayit-basarili')
   }
 
   return (
