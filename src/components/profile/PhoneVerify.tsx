@@ -2,16 +2,9 @@
 
 import { useState } from 'react'
 import { Phone, CheckCircle, Loader2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { sendPhoneOtp, verifyPhoneOtp } from '@/app/actions/phone'
 
 type Step = 'idle' | 'sending' | 'otp' | 'verifying' | 'done' | 'error'
-
-function formatPhone(raw: string): string {
-  const cleaned = raw.trim().replace(/\s+/g, '')
-  if (cleaned.startsWith('+')) return cleaned
-  // 05xx → +905xx
-  return `+90${cleaned.replace(/^0/, '')}`
-}
 
 export default function PhoneVerify({ currentPhone }: { currentPhone?: string | null }) {
   const [step, setStep] = useState<Step>(currentPhone ? 'done' : 'idle')
@@ -21,16 +14,10 @@ export default function PhoneVerify({ currentPhone }: { currentPhone?: string | 
 
   async function sendOtp() {
     setError(null)
-    const formatted = formatPhone(phone)
-    setPhone(formatted)
     setStep('sending')
-
-    const supabase = createClient()
-    // Var olan oturuma telefon ekle — OTP gönderir
-    const { error: err } = await supabase.auth.updateUser({ phone: formatted })
-
-    if (err) {
-      setError(hataMetni(err.message))
+    const res = await sendPhoneOtp(phone)
+    if (!res.ok) {
+      setError(res.error ?? 'SMS gönderilemedi.')
       setStep('error')
     } else {
       setStep('otp')
@@ -40,34 +27,13 @@ export default function PhoneVerify({ currentPhone }: { currentPhone?: string | 
   async function verifyOtp() {
     setError(null)
     setStep('verifying')
-
-    const supabase = createClient()
-    const { error: err } = await supabase.auth.verifyOtp({
-      phone,
-      token: otp.trim(),
-      type: 'phone_change',
-    })
-
-    if (err) {
-      setError(hataMetni(err.message))
+    const res = await verifyPhoneOtp(phone, otp)
+    if (!res.ok) {
+      setError(res.error ?? 'Doğrulama başarısız.')
       setStep('otp')
     } else {
-      // Profil tablosuna da yaz
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        await supabase.from('profiles').update({ phone }).eq('id', user.id)
-      }
       setStep('done')
     }
-  }
-
-  function hataMetni(msg: string): string {
-    if (msg.includes('Invalid phone')) return 'Geçersiz numara. +90 ile başlayan formatta gir.'
-    if (msg.includes('Token has expired')) return 'Kod süresi doldu. Tekrar SMS gönder.'
-    if (msg.includes('Invalid token')) return 'Kod hatalı. Tekrar dene.'
-    if (msg.includes('rate limit')) return 'Çok fazla deneme. Birkaç dakika bekle.'
-    if (msg.includes('already registered')) return 'Bu numara başka hesapta kayıtlı.'
-    return msg
   }
 
   if (step === 'done') {
@@ -142,9 +108,7 @@ export default function PhoneVerify({ currentPhone }: { currentPhone?: string | 
         </p>
       )}
 
-      {error && (
-        <p className="text-xs text-red-500">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
 }
