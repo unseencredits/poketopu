@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getCachedPartnerStores } from '@/lib/supabase/public'
 import Link from 'next/link'
 import { MapPin, Globe, Phone, Store, Plus, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -23,14 +23,9 @@ interface PartnerStore {
 }
 
 export default async function MagazalarPage() {
-  const supabase = await createClient()
-  const { data: stores } = await supabase
-    .from('partner_stores')
-    .select('id, name, description, city, address, phone, website, instagram, maps_url, store_type')
-    .eq('status', 'approved')
-    .order('city')
+  const stores = await getCachedPartnerStores()
 
-  const grouped = ((stores ?? []) as PartnerStore[]).reduce<Record<string, PartnerStore[]>>((acc, s) => {
+  const grouped = (stores as PartnerStore[]).reduce<Record<string, PartnerStore[]>>((acc, s) => {
     if (!acc[s.city]) acc[s.city] = []
     acc[s.city].push(s)
     return acc

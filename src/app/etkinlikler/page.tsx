@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCachedEvents } from '@/lib/supabase/public'
 import { MapPin, Calendar, Users, Trophy, Clock } from 'lucide-react'
 import EtkinlikForm from './EtkinlikForm'
 
@@ -20,16 +21,12 @@ interface Event {
 
 export default async function TurnuvaPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const [{ data: { user } }, eventsData] = await Promise.all([
+    supabase.auth.getUser(),
+    getCachedEvents(),
+  ])
 
-  const { data } = await supabase
-    .from('events')
-    .select('*, organizer:profiles(username)')
-    .eq('status', 'active')
-    .order('event_date', { ascending: true })
-    .limit(50)
-
-  const events = (data ?? []) as unknown as Event[]
+  const events = eventsData as unknown as Event[]
   const now = new Date()
 
   const upcoming = events.filter(e => new Date(e.event_date) >= now)

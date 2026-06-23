@@ -34,12 +34,13 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Yardım</h3>
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Yardım & Hukuki</h3>
             <ul className="space-y-2 text-sm text-gray-500">
               <li><Link href="/hakkimizda" className="hover:text-red-500">Hakkımızda</Link></li>
               <li><Link href="/iletisim" className="hover:text-red-500">İletişim</Link></li>
-              <li><Link href="/gizlilik" className="hover:text-red-500">Gizlilik</Link></li>
               <li><Link href="/kullanim-kosullari" className="hover:text-red-500">Kullanım Koşulları</Link></li>
+              <li><Link href="/kvkk" className="hover:text-red-500">KVKK</Link></li>
+              <li><Link href="/cerez-politikasi" className="hover:text-red-500">Çerez Politikası</Link></li>
             </ul>
           </div>
         </div>
