@@ -25,6 +25,8 @@ export interface Profile {
   bio: string | null
   location: string | null
   created_at: string
+  feature_credits: number
+  phone: string | null
 }
 
 export interface Store {
@@ -80,6 +82,7 @@ export interface Listing {
   city: string | null
   shipping: 'kargo' | 'elden' | 'her_ikisi' | null
   swap_open: boolean
+  featured_until: string | null
   views: number
   created_at: string
   updated_at: string

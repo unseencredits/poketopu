@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { removeListing, banUser, approveEvent, rejectEvent } from './actions'
+import { addFeatureCredits } from '@/app/actions/featuring'
 
 export const dynamic = 'force-dynamic'
 
@@ -183,6 +184,12 @@ export default async function AdminPage() {
                     className="text-xs px-2 py-1 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100">
                     Profil
                   </Link>
+                  <form action={addFeatureCredits.bind(null, u.id, 3)}>
+                    <button type="submit"
+                      className="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100">
+                      +3 Kredi
+                    </button>
+                  </form>
                   {!u.is_admin && (
                     <form action={banUser.bind(null, u.id)}>
                       <button type="submit"

@@ -8,7 +8,7 @@ import {
   User, Store, Package, LogOut, ChevronRight, Plus,
   Pencil, Eye, EyeOff, Trash2, ImagePlus, X, Upload,
   Banknote, ShoppingBag, AlertCircle, Star, ArrowRightLeft, BookMarked, Bell, BellRing, Tag,
-  CheckCircle, MessageCircle, RefreshCw,
+  CheckCircle, MessageCircle, RefreshCw, Sparkles,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { compressImage } from '@/lib/compress-image'
@@ -17,6 +17,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
 import PhoneVerify from '@/components/profile/PhoneVerify'
+import { featureListing } from '@/app/actions/featuring'
 
 interface OfferItem {
   id: string
@@ -123,6 +124,7 @@ export default function ProfilPage() {
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null)
   const [soldQty, setSoldQty] = useState(1)
   const [markingSold, setMarkingSold] = useState(false)
+  const [featuringId, setFeaturingId] = useState<string | null>(null)
 
   // Satın almadım
   const [disclaimId, setDisclaimId] = useState<string | null>(null)
@@ -664,6 +666,14 @@ export default function ProfilPage() {
           <PhoneVerify currentPhone={(profile as Profile & { phone?: string }).phone} />
         </div>
 
+        {/* Öne çıkarma kredileri */}
+        {(profile as Profile).feature_credits > 0 && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">
+            <Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+            <span><strong>{(profile as Profile).feature_credits}</strong> öne çıkarma krediniz var — aktif ilanlarınızda <Sparkles className="h-3 w-3 inline" /> butonuna basın.</span>
+          </div>
+        )}
+
         {/* İstatistikler — profil kartı içinde */}
         <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-gray-50">
           {[
@@ -969,6 +979,28 @@ export default function ProfilPage() {
                           <button onClick={() => toggleStatus(listing)} title={isPaused ? 'Tekrar Yayınla' : 'Yayından Kaldır'}
                             className={`p-2 rounded-xl hover:bg-gray-50 transition-colors ${isPaused ? 'text-orange-400 hover:text-green-500' : 'text-gray-400 hover:text-orange-500'}`}>
                             {isPaused ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          </button>
+                        )}
+
+                        {/* Öne Çıkar */}
+                        {listing.status === 'active' && (
+                          <button
+                            onClick={async () => {
+                              setFeaturingId(listing.id)
+                              const res = await featureListing(listing.id)
+                              setFeaturingId(null)
+                              if (!res.ok) alert(res.error)
+                            }}
+                            disabled={featuringId === listing.id}
+                            title={listing.featured_until && new Date(listing.featured_until) > new Date()
+                              ? `Öne çıkıyor — ${new Date(listing.featured_until).toLocaleDateString('tr-TR')}'e kadar`
+                              : 'Öne Çıkar (1 kredi)'}
+                            className={`p-2 rounded-xl transition-colors ${
+                              listing.featured_until && new Date(listing.featured_until) > new Date()
+                                ? 'text-amber-500'
+                                : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
+                            }`}>
+                            <Sparkles className="h-4 w-4" />
                           </button>
                         )}
 

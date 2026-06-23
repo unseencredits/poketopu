@@ -92,8 +92,16 @@ export default async function HomePage() {
     .select('*, product:products(id,name,set_name,number,image_url), store:stores(id,name,slug)')
     .eq('status', 'active')
     .order('created_at', { ascending: false })
-    .limit(8)
-  const recentListings = (recentRaw as Listing[]) ?? []
+    .limit(20)
+
+  const now = Date.now()
+  const recentListings = ((recentRaw as Listing[]) ?? [])
+    .sort((a, b) => {
+      const aFeatured = a.featured_until && new Date(a.featured_until).getTime() > now ? 1 : 0
+      const bFeatured = b.featured_until && new Date(b.featured_until).getTime() > now ? 1 : 0
+      return bFeatured - aFeatured
+    })
+    .slice(0, 8)
 
   return (
     <div className="pb-20">

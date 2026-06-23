@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Store } from 'lucide-react'
+import { Store, Sparkles } from 'lucide-react'
 import ConditionBadge from '@/components/shared/ConditionBadge'
 import type { Listing } from '@/types'
 
@@ -30,9 +30,10 @@ export default function ListingGrid({ listings, emptyMessage = 'Sonuç bulunamad
         const setName = listing.product?.set_name
 
         const href = listing.product_id ? `/kart/${listing.product_id}` : `/ilan/${listing.id}`
+        const isFeatured = listing.featured_until && new Date(listing.featured_until) > new Date()
         return (
           <Link href={href} key={listing.id} className="listing-card group block">
-            <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden h-full">
+            <div className={`rounded-2xl border bg-white overflow-hidden h-full ${isFeatured ? 'border-amber-200 ring-1 ring-amber-100' : 'border-gray-100'}`}>
               <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">
                 {photo ? (
                   <Image
@@ -50,6 +51,12 @@ export default function ListingGrid({ listings, emptyMessage = 'Sonuç bulunamad
                 {listing.condition && (
                   <div className="absolute top-2 left-2">
                     <ConditionBadge condition={listing.condition} showLabel={false} size="sm" />
+                  </div>
+                )}
+                {isFeatured && (
+                  <div className="absolute top-2 right-2 bg-amber-400 text-white rounded-lg px-1.5 py-0.5 flex items-center gap-0.5">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    <span className="text-[10px] font-bold leading-none">Öne Çıkan</span>
                   </div>
                 )}
               </div>
