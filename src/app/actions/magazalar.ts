@@ -16,6 +16,7 @@ export async function submitPartnerStore(formData: FormData) {
     email: formData.get('email') as string || null,
     website: formData.get('website') as string || null,
     instagram: formData.get('instagram') as string || null,
+    maps_url: formData.get('maps_url') as string || null,
     store_type: formData.get('store_type') as string || 'retail',
     submitted_by: user?.id ?? null,
   }

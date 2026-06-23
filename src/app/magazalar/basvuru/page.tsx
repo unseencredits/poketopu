@@ -8,6 +8,20 @@ import { Label } from '@/components/ui/label'
 import { submitPartnerStore } from '@/app/actions/magazalar'
 import { CheckCircle } from 'lucide-react'
 
+const CITIES = [
+  'Adana','Adıyaman','Afyonkarahisar','Ağrı','Aksaray','Amasya','Ankara','Antalya',
+  'Ardahan','Artvin','Aydın','Balıkesir','Bartın','Batman','Bayburt','Bilecik',
+  'Bingöl','Bitlis','Bolu','Burdur','Bursa','Çanakkale','Çankırı','Çorum',
+  'Denizli','Diyarbakır','Düzce','Edirne','Elazığ','Erzincan','Erzurum',
+  'Eskişehir','Gaziantep','Giresun','Gümüşhane','Hakkari','Hatay','Iğdır',
+  'Isparta','İstanbul','İzmir','Kahramanmaraş','Karabük','Karaman','Kars',
+  'Kastamonu','Kayseri','Kilis','Kırıkkale','Kırklareli','Kırşehir','Kocaeli',
+  'Konya','Kütahya','Malatya','Manisa','Mardin','Mersin','Muğla','Muş',
+  'Nevşehir','Niğde','Ordu','Osmaniye','Rize','Sakarya','Samsun','Siirt',
+  'Sinop','Sivas','Şanlıurfa','Şırnak','Tekirdağ','Tokat','Trabzon','Tunceli',
+  'Uşak','Van','Yalova','Yozgat','Zonguldak',
+]
+
 export default function MagazaBasvuruPage() {
   const [done, setDone] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -62,7 +76,11 @@ export default function MagazaBasvuruPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="city">Şehir *</Label>
-            <Input id="city" name="city" required placeholder="İstanbul" className="h-11" />
+            <select id="city" name="city" required
+              className="w-full h-11 rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+              <option value="">Şehir seçin...</option>
+              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
 
@@ -79,6 +97,12 @@ export default function MagazaBasvuruPage() {
         <div className="space-y-1.5">
           <Label htmlFor="address">Adres</Label>
           <Input id="address" name="address" placeholder="Mahalle, cadde, sokak..." className="h-11" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="maps_url">Google Maps Bağlantısı</Label>
+          <Input id="maps_url" name="maps_url" type="url" placeholder="https://maps.google.com/..." className="h-11" />
+          <p className="text-xs text-gray-400">Google Maps'te mağazanı bul → Paylaş → Bağlantıyı kopyala</p>
         </div>
 
         <div className="space-y-1.5">

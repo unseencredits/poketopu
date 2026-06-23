@@ -2,12 +2,13 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
-  removeListing, banUser, deleteUser,
+  removeListing, banUser,
   approveEvent, rejectEvent, deleteEvent,
   removeTrade,
   approvePartnerStore, rejectPartnerStore, deletePartnerStore,
 } from './actions'
 import { addFeatureCredits } from '@/app/actions/featuring'
+import DeleteUserButton from './DeleteUserButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -314,11 +315,7 @@ export default async function AdminPage({ searchParams }: Props) {
                     <form action={banUser.bind(null, u.id)}>
                       <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100">İlanları Kaldır</button>
                     </form>
-                    <form action={deleteUser.bind(null, u.id)} onSubmit={(e) => {
-                      if (!confirm(`@${u.username} hesabını kalıcı sil?`)) e.preventDefault()
-                    }}>
-                      <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100">Sil</button>
-                    </form>
+                    <DeleteUserButton userId={u.id} username={u.username} />
                   </>
                 )}
               </div>
