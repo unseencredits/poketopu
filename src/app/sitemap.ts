@@ -17,5 +17,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/iletisim`,           lastModified: new Date(), changeFrequency: 'monthly', priority: 0.3 },
     { url: `${BASE}/kullanim-kosullari`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.2 },
     { url: `${BASE}/gizlilik`,           lastModified: new Date(), changeFrequency: 'monthly', priority: 0.2 },
+    { url: `${BASE}/magazalar`,          lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.5 },
   ]
 }

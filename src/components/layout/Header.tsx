@@ -62,6 +62,7 @@ const NAV_LINKS = [
   { href: '/ara?kategori=accessory', label: 'Aksesuar' },
   { href: '/takas',               label: 'Takas' },
   { href: '/etkinlikler',         label: 'Etkinlikler' },
+  { href: '/magazalar',           label: 'Mağazalar' },
 ]
 
 export default function Header() {
