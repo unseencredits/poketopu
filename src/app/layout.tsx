@@ -4,8 +4,9 @@ import './globals.css'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import ScrollToTop from '@/components/layout/ScrollToTop'
-import { Analytics } from '@vercel/analytics/react'
-import { SpeedInsights } from '@vercel/speed-insights/next'
+import CookieBanner from '@/components/layout/CookieBanner'
+import ConditionalAnalytics from '@/components/layout/ConditionalAnalytics'
+import FeedbackButton from '@/components/shared/FeedbackButton'
 
 const geist = Geist({ subsets: ['latin'] })
 
@@ -49,8 +50,9 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
-        <Analytics />
-        <SpeedInsights />
+        <FeedbackButton />
+        <CookieBanner />
+        <ConditionalAnalytics />
       </body>
     </html>
   )

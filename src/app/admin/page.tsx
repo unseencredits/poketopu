@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -19,6 +20,7 @@ const TABS = [
   { id: 'etkinlikler',label: 'Etkinlikler' },
   { id: 'magazalar',  label: 'Mağazalar' },
   { id: 'kullanicilar', label: 'Kullanıcılar' },
+  { id: 'geribildirim', label: 'Geri Bildirim' },
 ] as const
 
 type Tab = typeof TABS[number]['id']
@@ -75,9 +77,23 @@ export default async function AdminPage({ searchParams }: Props) {
     .order('created_at', { ascending: false })
     .limit(100)
 
+  // E-posta onay durumu
+  const adminClient = createAdminClient()
+  const { data: { users: authUsers } } = await adminClient.auth.admin.listUsers({ perPage: 200 })
+  const confirmedMap = new Map(authUsers.map(u => [u.id, !!u.email_confirmed_at]))
+  const pendingConfirmCount = (users ?? []).filter(u => !confirmedMap.get(u.id)).length
+
+  // ── Geri Bildirimler ──────────────────────────────────────────────────────
+  const { data: feedbacks } = await supabase
+    .from('feedbacks')
+    .select('id, message, credited, created_at, user:profiles(username)')
+    .order('created_at', { ascending: false })
+    .limit(100)
+
   // Stats
   const pendingEventCount = (events ?? []).filter(e => e.status === 'pending').length
   const pendingStoreCount = (partnerStores ?? []).filter(s => s.status === 'pending').length
+  const newFeedbackCount = (feedbacks ?? []).length
   const totalAlerts = pendingEventCount + pendingStoreCount
 
   return (
@@ -91,13 +107,14 @@ export default async function AdminPage({ searchParams }: Props) {
       </div>
 
       {/* Özet */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
         {[
           { label: 'İlan',        value: (listings ?? []).filter(l => l.status === 'active').length },
           { label: 'Takas',       value: (trades ?? []).filter(t => t.status === 'active').length },
           { label: 'Bekl. Etkinlik', value: pendingEventCount, alert: pendingEventCount > 0 },
           { label: 'Bekl. Mağaza',   value: pendingStoreCount, alert: pendingStoreCount > 0 },
           { label: 'Üye',         value: users?.length ?? 0 },
+          { label: 'Geri Bildirim',  value: newFeedbackCount },
         ].map(({ label, value, alert }) => (
           <div key={label} className={`border rounded-2xl p-3 text-center ${alert ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'}`}>
             <p className={`text-xl font-bold ${alert ? 'text-amber-700' : 'text-gray-900'}`}>{value}</p>
@@ -294,16 +311,49 @@ export default async function AdminPage({ searchParams }: Props) {
         </div>
       )}
 
+      {/* ── GERİ BİLDİRİM ────────────────────────────────────────────────── */}
+      {tab === 'geribildirim' && (
+        <div className="space-y-2">
+          {(feedbacks ?? []).length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-8">Henüz geri bildirim yok</p>
+          )}
+          {(feedbacks ?? []).map(f => {
+            const fb = f as typeof f & { user: { username: string } | null }
+            return (
+              <div key={f.id} className="bg-white border border-gray-100 rounded-xl p-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <span className="text-xs font-medium text-gray-500">
+                    @{fb.user?.username ?? 'anonim'}
+                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {f.credited && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">+2 kredi verildi</span>
+                    )}
+                    <span className="text-xs text-gray-400">
+                      {new Date(f.created_at).toLocaleDateString('tr-TR')}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed">{f.message}</p>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* ── KULLANICILAR ─────────────────────────────────────────────────── */}
       {tab === 'kullanicilar' && (
         <div className="space-y-2">
           {(users ?? []).map(u => (
             <div key={u.id} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-2">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  @{u.username}
-                  {u.is_admin && <span className="ml-1 text-[10px] text-primary font-bold">ADMIN</span>}
-                </p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="text-sm font-medium text-gray-900 truncate">@{u.username}</p>
+                  {u.is_admin && <span className="text-[10px] text-primary font-bold">ADMIN</span>}
+                  {!confirmedMap.get(u.id) && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">E-posta onayı bekliyor</span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-400">{new Date(u.created_at).toLocaleDateString('tr-TR')}</p>
               </div>
               <div className="flex gap-1 flex-shrink-0 flex-wrap justify-end">

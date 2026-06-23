@@ -12,12 +12,13 @@ export default function ListingCard({ listing }: Props) {
   const title = listing.custom_title ?? listing.product?.name ?? 'İsimsiz İlan'
   const photo = listing.photos?.[0] ?? listing.product?.image_url ?? null
   const setName = listing.product?.set_name
+  const isFeatured = listing.featured_until && new Date(listing.featured_until) > new Date()
 
   const href = listing.product_id ? `/kart/${listing.product_id}` : `/ilan/${listing.id}`
 
   return (
     <Link href={href} className="listing-card group block">
-      <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+      <div className={`rounded-2xl border bg-white overflow-hidden ${isFeatured ? 'border-primary/60 shadow-sm shadow-primary/10' : 'border-gray-100'}`}>
         {/* Fotoğraf */}
         <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">
           {photo ? (
@@ -34,6 +35,11 @@ export default function ListingCard({ listing }: Props) {
             </div>
           )}
 
+          {isFeatured && (
+            <div className="absolute top-2 right-2 z-10">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary text-white uppercase tracking-wide">Öne Çıkan</span>
+            </div>
+          )}
           {(listing.grader && listing.grade != null) ? (
             <div className="absolute top-2 left-2">
               <ConditionBadge grader={listing.grader} grade={listing.grade} showLabel={false} size="sm" />

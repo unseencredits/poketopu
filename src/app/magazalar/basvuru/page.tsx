@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,9 +25,16 @@ const CITIES = [
 ]
 
 export default function MagazaBasvuruPage() {
+  const router = useRouter()
   const [done, setDone] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data: { user } }) => {
+      if (!user) router.replace('/giris?redirect=/magazalar/basvuru')
+    })
+  }, [router])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -122,8 +131,9 @@ export default function MagazaBasvuruPage() {
             <Input id="phone" name="phone" type="tel" placeholder="05xx xxx xx xx" className="h-11" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="email">E-posta</Label>
+            <Label htmlFor="email">İletişim E-postası</Label>
             <Input id="email" name="email" type="email" placeholder="magaza@mail.com" className="h-11" />
+            <p className="text-xs text-gray-400">Yalnızca sizinle iletişim için kullanılır, sitede yayınlanmaz.</p>
           </div>
         </div>
 

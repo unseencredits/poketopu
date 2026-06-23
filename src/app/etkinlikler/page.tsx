@@ -20,6 +20,7 @@ interface Event {
 
 export default async function TurnuvaPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
   const { data } = await supabase
     .from('events')
@@ -114,7 +115,7 @@ export default async function TurnuvaPage() {
           <h1 className="text-2xl font-bold text-gray-900">Turnuva & Etkinlikler</h1>
           <p className="text-sm text-gray-400 mt-0.5">Türkiye genelindeki Pokémon TCG etkinlikleri</p>
         </div>
-        <EtkinlikForm />
+        <EtkinlikForm isLoggedIn={!!user} />
       </div>
 
       {events.length === 0 ? (

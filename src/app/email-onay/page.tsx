@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'E-posta Onaylandı' }
+export const metadata: Metadata = { title: 'Hoş Geldin!' }
 
 export default function EmailOnayPage() {
   return (
@@ -14,23 +13,35 @@ export default function EmailOnayPage() {
           <Image src="/logo-colored.svg" alt="Poketopu" width={140} height={33} className="h-8 w-auto mx-auto mb-10" />
         </Link>
 
-        <div className="h-16 w-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-6">
-          <CheckCircle className="h-8 w-8 text-emerald-500" />
-        </div>
+        <div className="text-5xl mb-6">🎉</div>
 
-        <h1 className="text-xl font-bold text-gray-900 mb-3">E-posta onaylandı!</h1>
-        <p className="text-sm text-gray-500 leading-relaxed mb-8">
-          Hesabın aktifleşti. Giriş yaparak ilanları keşfedebilir, takas yapabilir ve ilan verebilirsin.
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">
+          Hoş geldin, koleksiyoncu!
+        </h1>
+        <p className="text-base text-gray-500 leading-relaxed mb-2">
+          E-posta adresin onaylandı. Artık ilanları keşfedebilir, takas yapabilir ve kendi ilanlarını verebilirsin.
+        </p>
+        <p className="text-sm text-gray-400 leading-relaxed mb-8">
+          Tadını çıkar! ✨
         </p>
 
-        <Link href="/giris">
-          <Button className="w-full h-11 bg-primary hover:bg-primary/90 text-white rounded-xl">
-            Giriş Yap
+        {/* Beta mesajı */}
+        <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 mb-8 text-left">
+          <p className="text-xs font-semibold text-primary mb-1">Beta sürecindeyiz</p>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Poketopu şu an beta aşamasında. Her geri bildirim platformu şekillendiriyor.
+            Bir şey eksik mi? Garip mi davranıyor? Söylemekten çekinme!
+          </p>
+        </div>
+
+        <Link href="/">
+          <Button className="w-full h-11 bg-primary hover:bg-primary/90 text-white rounded-xl mb-3">
+            İlanları Keşfet
           </Button>
         </Link>
 
-        <Link href="/" className="block mt-4 text-sm text-gray-400 hover:text-gray-600 transition-colors">
-          Önce biraz gez →
+        <Link href="/ilan-ver" className="block text-sm text-gray-400 hover:text-gray-600 transition-colors">
+          İlan vermek istiyorum →
         </Link>
       </div>
     </div>

@@ -142,8 +142,10 @@ export default function KayitPage() {
 
         <p className="text-center text-xs text-gray-400 mt-4">
           Üye olarak{' '}
-          <Link href="/kullanim-kosullari" className="underline">Kullanım Koşulları</Link>
-          'nı kabul etmiş olursun.
+          <Link href="/kullanim-kosullari" className="underline hover:text-gray-600">Kullanım Koşulları</Link>
+          'nı ve{' '}
+          <Link href="/kvkk" className="underline hover:text-gray-600">KVKK Aydınlatma Metni</Link>
+          'ni okuduğunu ve kabul ettiğini onaylıyorsun.
         </p>
 
         <p className="text-center text-sm text-gray-500 mt-4">
