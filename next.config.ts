@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
         hostname: 'eskipzstgoexqjgcxskl.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.scrydex.com',
+        pathname: '/**',
+      },
     ],
   },
 };
