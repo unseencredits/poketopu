@@ -8,9 +8,29 @@ import ScrollToTop from '@/components/layout/ScrollToTop'
 const geist = Geist({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "poketopu — Türkiye'nin TCG Pazaryeri",
-  description: "Pokemon kartları, sealed ürünler ve aksesuarlar için Türkiye'nin en büyük ikinci el pazaryeri.",
-  keywords: 'pokemon kart, tcg, trading card, ikinci el, pokemon türkiye',
+  title: {
+    default: "Poketopu | Türkiye'nin Pokémon TCG Pazaryeri",
+    template: '%s | Poketopu',
+  },
+  description: "Pokémon TCG kartlarını alın, satın veya takas edin. Türkiye'nin ilk koleksiyoncu platformu. Ücretsiz ilan verin.",
+  keywords: ['pokemon kart', 'pokémon tcg', 'pokemon türkiye', 'tcg pazaryeri', 'pokemon kart satış', 'pokemon kart takas', 'pokemon ikinci el', 'koleksiyoncu'],
+  metadataBase: new URL('https://poketopu.com'),
+  openGraph: {
+    type: 'website',
+    locale: 'tr_TR',
+    url: 'https://poketopu.com',
+    siteName: 'Poketopu',
+    title: "Poketopu | Türkiye'nin Pokémon TCG Pazaryeri",
+    description: "Pokémon TCG kartlarını alın, satın veya takas edin. Türkiye'nin ilk koleksiyoncu platformu.",
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Poketopu — Türkiye Pokémon TCG Pazaryeri' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Poketopu | Türkiye'nin Pokémon TCG Pazaryeri",
+    description: "Pokémon TCG kartlarını alın, satın veya takas edin. Türkiye'nin ilk koleksiyoncu platformu.",
+  },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
+  alternates: { canonical: 'https://poketopu.com' },
 }
 
 export default function RootLayout({

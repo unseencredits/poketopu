@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ShieldCheck, AlertTriangle, MapPin, MessageCircle, Star, Package } from 'lucide-react'
 
 export const metadata = {
-  title: 'Güvenli İşlem Rehberi — Poketopu',
+  title: 'Güvenli İşlem Rehberi',
   description: 'Poketopu\'da alım-satım yaparken güvende kalmanızı sağlayacak ipuçları.',
 }
 
@@ -11,7 +11,7 @@ const SECTIONS = [
     icon: <MessageCircle className="h-5 w-5 text-blue-500" />,
     title: 'Platform içinde iletişim kurun',
     items: [
-      'Tüm görüşmeleri Poketopu mesaj sistemi üzerinden yapın — anlaşmazlık durumunda geçmiş kayıt altındadır.',
+      'Tüm görüşmeleri platform içindeki mesaj sistemi üzerinden yürütün. Olası bir anlaşmazlıkta yazışma geçmişi kanıt niteliği taşır.',
       'Tanımadığınız satıcılar WhatsApp, Telegram veya Discord\'a geçmeyi teklif ederse dikkatli olun.',
       'Kişisel bilgilerinizi (TC, banka hesabı, şifre) hiçbir zaman mesajla paylaşmayın.',
     ],
@@ -22,7 +22,7 @@ const SECTIONS = [
     items: [
       'Tanışmayı kalabalık, aydınlık ve güvenli bir yerde yapın (AVM, kafe, metro çıkışı).',
       'Mümkünse yalnız gitmeyin; yanınızda birini götürün.',
-      'Kartı yüz yüze inceleme fırsatı talep edin — alıcı olarak bu hakkınızdır.',
+      'Kartı teslim almadan önce yerinde inceleme hakkınızı kullanın.',
       'Ödemeyi nakit yapıyorsanız parayı teslim almadan önce kartı kontrol edin.',
     ],
   },
@@ -32,7 +32,7 @@ const SECTIONS = [
     items: [
       'Kargo tercihini her zaman takip numaralı seçin; hem alıcı hem satıcı için korumalıdır.',
       'Satıcıdan kargo fişi fotoğrafı isteyin; bu kargonun gerçekten gönderildiğini kanıtlar.',
-      'Paketi açarken video çekin — olası hasar anlaşmazlıklarında kanıt olur.',
+      'Paketi açarken video çekin; hasar durumunda kargo firmasına ve satıcıya karşı kanıt olarak işe yarar.',
       'Kargo ücreti konusunda önceden netleşin; ilan fiyatına dahil mi, ayrı mı?',
     ],
   },
@@ -43,7 +43,7 @@ const SECTIONS = [
       'Satıcının profil sayfasını inceleyin: üyelik tarihi, aktif ilan sayısı ve değerlendirme puanı.',
       'Hiç değerlendirmesi olmayan, çok yeni hesaplara karşı daha temkinli olun.',
       'İlk kez alışveriş yaptığınız satıcıyla küçük bir işlemle başlayın.',
-      'İşlem sonrası değerlendirme bırakın — topluluğu birlikte güvenli tutuyoruz.',
+      'İşlem sonrası değerlendirme bırakın. Güvenli bir topluluk oluşturmak hepimizin sorumluluğu.',
     ],
   },
   {
@@ -76,8 +76,8 @@ export default function GuvenliIslemPage() {
       </div>
       <p className="text-sm text-gray-400 mb-2">Son güncelleme: Haziran 2026</p>
       <p className="text-gray-500 text-sm mb-10 leading-relaxed">
-        Poketopu bir P2P ilan platformudur — tüm alım-satım işlemleri kullanıcılar arasında doğrudan gerçekleşir.
-        Ödeme veya kargo güvencesi sunmayız. Bu rehber, kendinizi korumanıza yardımcı olmak için hazırlanmıştır.
+        Poketopu bir ilan ve eşleşme platformudur. Tüm alım-satım işlemleri kullanıcılar arasında doğrudan gerçekleşir.
+        Platform ödeme veya kargo güvencesi sunmaz. Bu rehber doğru bilgiyle kendinizi korumanız için hazırlandı.
       </p>
 
       <div className="space-y-8">

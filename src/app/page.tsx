@@ -85,6 +85,33 @@ const HOW_IT_WORKS = [
   },
 ]
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': 'https://poketopu.com/#website',
+      url: 'https://poketopu.com',
+      name: 'Poketopu',
+      description: "Türkiye'nin ilk Pokémon TCG koleksiyoncu platformu",
+      inLanguage: 'tr-TR',
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: { '@type': 'EntryPoint', urlTemplate: 'https://poketopu.com/ara?q={search_term_string}' },
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@type': 'Organization',
+      '@id': 'https://poketopu.com/#organization',
+      name: 'Poketopu',
+      url: 'https://poketopu.com',
+      logo: { '@type': 'ImageObject', url: 'https://poketopu.com/logo-colored.svg' },
+      contactPoint: { '@type': 'ContactPoint', email: 'destek@poketopu.com', contactType: 'customer service', availableLanguage: 'Turkish' },
+    },
+  ],
+}
+
 export default async function HomePage() {
   const supabase = await createClient()
   const { data: recentRaw } = await supabase
@@ -105,6 +132,7 @@ export default async function HomePage() {
 
   return (
     <div className="pb-20">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ── HERO ── */}
       <section className="relative overflow-hidden bg-white">

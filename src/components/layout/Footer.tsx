@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Footer() {
   return (
@@ -6,7 +7,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
           <div>
-            <span className="text-lg font-bold text-red-500">poketopu</span>
+            <Image src="/logo-colored.svg" alt="Poketopu" width={120} height={28} className="h-7 w-auto" />
             <p className="mt-2 text-sm text-gray-500">
               Türkiye'nin TCG ilan ve takas platformu
             </p>
