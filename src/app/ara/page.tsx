@@ -22,6 +22,26 @@ interface ProductCard {
   count: number
 }
 
+// Kelime bazlı çok alanlı ürün arama: her kelime name/set_name/number'da OR, kelimeler arası AND
+// "19/68" gibi "no/total" formatında numarayı "/" öncesiyle de eşleştirir
+async function matchProductIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  q: string,
+): Promise<string[]> {
+  const words = q.trim().split(/\s+/).filter(Boolean)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let prodQuery: any = supabase.from('products').select('id')
+  for (const word of words) {
+    // "19/68" → number sütununda "19" ara (toplam olmadan); text için tam word
+    const numBase = /^\d{1,4}\/\d+$/.test(word) ? word.split('/')[0] : word
+    prodQuery = prodQuery.or(
+      `name.ilike.%${word}%,set_name.ilike.%${word}%,number.ilike.%${numBase}%`
+    )
+  }
+  const { data } = await prodQuery
+  return (data ?? []).map((p: { id: string }) => p.id)
+}
+
 async function getCardProducts(sp: Record<string, string>): Promise<{ products: ProductCard[]; total: number }> {
   const supabase = await createClient()
 
@@ -41,9 +61,7 @@ async function getCardProducts(sp: Record<string, string>): Promise<{ products: 
   if (sp.teslimat === 'elden') query = query.in('shipping', ['elden', 'her_ikisi'])
 
   if (sp.q) {
-    const { data: matchedProds } = await supabase
-      .from('products').select('id').ilike('name', `%${sp.q}%`)
-    const ids = (matchedProds ?? []).map((p: { id: string }) => p.id)
+    const ids = await matchProductIds(supabase, sp.q)
     if (!ids.length) return { products: [], total: 0 }
     query = query.in('product_id', ids)
   }
@@ -72,12 +90,7 @@ async function getListings(sp: Record<string, string>, excludeCards = false): Pr
     .eq('status', 'active')
 
   if (sp.q) {
-    const { data: matchedProds } = await supabase
-      .from('products')
-      .select('id')
-      .ilike('name', `%${sp.q}%`)
-    const matchedProdIds = (matchedProds ?? []).map((p: { id: string }) => p.id)
-
+    const matchedProdIds = await matchProductIds(supabase, sp.q)
     if (matchedProdIds.length > 0) {
       query = query.or(`custom_title.ilike.%${sp.q}%,product_id.in.(${matchedProdIds.join(',')})`)
     } else {

@@ -24,12 +24,24 @@ export interface TCGSet {
 
 function buildSearchQuery(q: string): string {
   const trimmed = q.trim()
-  // Kart numarası formatı: "019", "019/198", "25", "SV001" gibi
-  const numberOnly = /^\d{1,4}(\/\d+)?$/.test(trimmed)
-  if (numberOnly) {
+
+  // Sadece numara: "19", "019/68", "SV001", "TG01"
+  if (/^[A-Za-z]{0,3}\d{1,4}(\/\d+)?$/.test(trimmed)) {
     const num = trimmed.split('/')[0].replace(/^0+/, '') || '0'
     return `number:${num}`
   }
+
+  // Ad + numara: "pikachu 19", "charizard 4/102", "pikachu hidden fates 19/68"
+  // → son token numara ise onu ayır, kalanı ad olarak ara
+  const m = trimmed.match(/^(.+?)\s+([A-Za-z]{0,3}\d{1,4}(?:\/\d+)?)$/)
+  if (m) {
+    const namePart = m[1].trim()
+    const num = m[2].split('/')[0].replace(/^0+/, '') || '0'
+    // Sadece ilk kelimeyi kart adı olarak kullan (set adını ad kısmından çıkar)
+    const firstWord = namePart.split(/\s+/)[0]
+    return `name:"${firstWord}*" number:${num}`
+  }
+
   return `name:"${trimmed}*"`
 }
 
