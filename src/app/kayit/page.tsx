@@ -63,12 +63,12 @@ export default function KayitPage() {
     })
 
     if (error) {
-      setError(error.message.includes('already') ? 'Bu e-posta adresi zaten kayıtlı.' : 'Kayıt sırasında bir hata oluştu. Tekrar dene.')
+      setError('Kayıt sırasında bir hata oluştu. Tekrar dene.')
       setLoading(false)
       return
     }
 
-    router.push('/kayit-basarili')
+    router.push(`/kayit-basarili?email=${encodeURIComponent(form.email)}`)
   }
 
   return (
