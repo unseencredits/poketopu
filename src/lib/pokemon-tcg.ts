@@ -25,21 +25,25 @@ export interface TCGSet {
 function buildSearchQuery(q: string): string {
   const trimmed = q.trim()
 
-  // Sadece numara: "19", "019/68", "SV001", "TG01"
+  // Sadece numara: "19", "019/68", "SV001"
   if (/^[A-Za-z]{0,3}\d{1,4}(\/\d+)?$/.test(trimmed)) {
     const num = trimmed.split('/')[0].replace(/^0+/, '') || '0'
     return `number:${num}`
   }
 
-  // Ad + numara: "pikachu 19", "charizard 4/102", "pikachu hidden fates 19/68"
-  // → son token numara ise onu ayır, kalanı ad olarak ara
+  // Numara ile biten sorgu: "pikachu 19/68", "pikachu hidden fates 19/68"
   const m = trimmed.match(/^(.+?)\s+([A-Za-z]{0,3}\d{1,4}(?:\/\d+)?)$/)
   if (m) {
-    const namePart = m[1].trim()
+    const textPart = m[1].trim()
     const num = m[2].split('/')[0].replace(/^0+/, '') || '0'
-    // Sadece ilk kelimeyi kart adı olarak kullan (set adını ad kısmından çıkar)
-    const firstWord = namePart.split(/\s+/)[0]
-    return `name:"${firstWord}*" number:${num}`
+    const wordCount = textPart.split(/\s+/).length
+    if (wordCount <= 2) {
+      // "pikachu 19/68", "charizard ex 19/68" → kart adı + numara
+      return `name:"${textPart}*" number:${num}`
+    }
+    // "pikachu hidden fates 19/68", "hidden fates pikachu 19/68"
+    // → set adı karışmış, sadece numarayla ara (set seçiliyse birlikte kesin sonuç verir)
+    return `number:${num}`
   }
 
   return `name:"${trimmed}*"`
