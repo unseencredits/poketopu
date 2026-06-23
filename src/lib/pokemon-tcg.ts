@@ -1,5 +1,10 @@
 const BASE = 'https://api.pokemontcg.io/v2'
 
+function tcgHeaders(): HeadersInit {
+  const key = process.env.POKEMON_TCG_API_KEY
+  return key ? { 'X-Api-Key': key } : {}
+}
+
 export interface TCGCard {
   id: string
   name: string
@@ -77,7 +82,7 @@ export async function searchCards(
   const pageSize = setId && (!trimmed || trimmed === '*') ? 250 : setId ? 30 : 24
   const res = await fetch(
     `${BASE}/cards?q=${encoded}&page=${page}&pageSize=${pageSize}&orderBy=number&select=id,name,number,rarity,supertype,subtypes,types,hp,images,set`,
-    { next: { revalidate: 3600 } }
+    { next: { revalidate: 3600 }, headers: tcgHeaders() }
   )
   if (!res.ok) return { data: [], totalCount: 0 }
   const json = await res.json()
@@ -85,7 +90,7 @@ export async function searchCards(
 }
 
 export async function getCard(id: string): Promise<TCGCard | null> {
-  const res = await fetch(`${BASE}/cards/${id}`, { next: { revalidate: 86400 } })
+  const res = await fetch(`${BASE}/cards/${id}`, { next: { revalidate: 86400 }, headers: tcgHeaders() })
   if (!res.ok) return null
   const json = await res.json()
   return json.data ?? null
@@ -94,7 +99,7 @@ export async function getCard(id: string): Promise<TCGCard | null> {
 export async function getSets(): Promise<TCGSet[]> {
   const res = await fetch(
     `${BASE}/sets?select=id,name,series,total,releaseDate,images&orderBy=-releaseDate`,
-    { next: { revalidate: 86400 } }
+    { next: { revalidate: 86400 }, headers: tcgHeaders() }
   )
   if (!res.ok) return []
   const json = await res.json()
