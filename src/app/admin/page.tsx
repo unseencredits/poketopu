@@ -12,6 +12,7 @@ import { addFeatureCredits } from '@/app/actions/featuring'
 import DeleteUserButton from './DeleteUserButton'
 import FeatureCreditButton from './FeatureCreditButton'
 import ConfirmButton from './ConfirmButton'
+import ImportCardsButton from './ImportCardsButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'magazalar',  label: 'Mağazalar' },
   { id: 'kullanicilar', label: 'Kullanıcılar' },
   { id: 'geribildirim', label: 'Geri Bildirim' },
+  { id: 'sistem',       label: 'Sistem' },
 ] as const
 
 type Tab = typeof TABS[number]['id']
@@ -83,6 +85,11 @@ export default async function AdminPage({ searchParams }: Props) {
   const { data: { users: authUsers } } = await adminClient.auth.admin.listUsers({ perPage: 200 })
   const confirmedMap = new Map(authUsers.map(u => [u.id, !!u.email_confirmed_at]))
   const pendingConfirmCount = (users ?? []).filter(u => !confirmedMap.get(u.id)).length
+
+  // ── Sistem ────────────────────────────────────────────────────────────────
+  const { count: productCount } = await supabase
+    .from('products')
+    .select('id', { count: 'exact', head: true })
 
   // ── Geri Bildirimler ──────────────────────────────────────────────────────
   const { data: feedbacks } = await supabase
@@ -488,6 +495,30 @@ export default async function AdminPage({ searchParams }: Props) {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── SİSTEM ───────────────────────────────────────────────────────── */}
+      {tab === 'sistem' && (
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Mevcut Durum</p>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0">
+                <span className="text-lg">🗃️</span>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">{(productCount ?? 0).toLocaleString('tr-TR')}</p>
+                <p className="text-xs text-gray-400">kart Supabase&#39;de</p>
+              </div>
+            </div>
+            {(productCount ?? 0) < 1000 && (
+              <p className="text-xs text-amber-600 mt-3 bg-amber-50 rounded-lg px-3 py-2">
+                Kart sayısı düşük görünüyor. Aşağıdaki butonu kullanarak tüm veriyi içe aktarın.
+              </p>
+            )}
+          </div>
+          <ImportCardsButton />
         </div>
       )}
 
