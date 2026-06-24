@@ -39,7 +39,10 @@ export async function GET(request: Request) {
 
   if (!q.trim() && !setId) return Response.json({ data: [], totalCount: 0 })
 
-  // 1. Metin sorgusu varsa önce yerel products tablosuna bak (çok hızlı)
+  // TCG API (önbellekli, 1 saat) — tam katalog
+  const { data: apiCards, totalCount } = await cachedSearchCards(q.trim(), setId || undefined)
+
+  // Yerel DB'deki kartları da ekle (platformda ilan verilmiş ama API'de sayfa dışı kalanlar)
   if (q.trim()) {
     const supabase = await createClient()
     const words = q.trim().split(/\s+/).filter(Boolean)
@@ -50,7 +53,6 @@ export async function GET(request: Request) {
       .order('name')
       .limit(24)
 
-    // Her kelime hem isim hem numara alanında aransın (AND mantığı)
     for (const word of words) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       localQ = (localQ as any).or(`name.ilike.%${word}%,number.ilike.%${word}%`)
@@ -61,13 +63,15 @@ export async function GET(request: Request) {
     }
 
     const { data: local } = await localQ
-    if (local && local.length >= 4) {
-      const cards = (local as LocalProduct[]).map(toTCGCard)
-      return Response.json({ data: cards, totalCount: cards.length })
+    if (local && local.length > 0) {
+      const apiIds = new Set(apiCards.map((c: TCGCard) => c.id))
+      const extras = (local as LocalProduct[])
+        .filter(p => !apiIds.has(p.id))
+        .map(toTCGCard)
+      const merged = [...apiCards, ...extras]
+      return Response.json({ data: merged, totalCount: totalCount + extras.length })
     }
   }
 
-  // 2. Yerel sonuç yetersiz → TCG API (önbellekli, aynı sorgu tekrar hızlı gelir)
-  const { data, totalCount } = await cachedSearchCards(q.trim(), setId || undefined)
-  return Response.json({ data, totalCount })
+  return Response.json({ data: apiCards, totalCount })
 }
