@@ -74,22 +74,29 @@ async function getKartListings(
 
 async function getActiveSets(): Promise<SetInfo[]> {
   const supabase = await createClient()
-  // Aktif kart ilanlarına sahip set'leri çek
-  const { data } = await supabase
+
+  // Adım 1: aktif kart ilanlarının product_id'lerini al
+  const { data: listingRows } = await supabase
     .from('listings')
-    .select('product:products!inner(set_id, set_name, series)')
+    .select('product_id')
     .eq('status', 'active')
     .eq('category', 'card')
     .not('product_id', 'is', null)
-    .limit(5000)
+
+  if (!listingRows?.length) return []
+
+  // Adım 2: o product_id'lere ait benzersiz set bilgilerini al
+  const ids = [...new Set(listingRows.map(l => l.product_id as string))]
+  const { data: prods } = await supabase
+    .from('products')
+    .select('set_id, set_name, series')
+    .in('id', ids)
+    .not('set_id', 'is', null)
 
   const seen = new Set<string>()
   const sets: SetInfo[] = []
-  for (const l of data ?? []) {
-    const p = l.product as unknown as {
-      set_id: string | null; set_name: string | null; series: string | null
-    }
-    if (p?.set_id && !seen.has(p.set_id)) {
+  for (const p of prods ?? []) {
+    if (p.set_id && !seen.has(p.set_id)) {
       seen.add(p.set_id)
       sets.push({ id: p.set_id, name: p.set_name ?? p.set_id, series: p.series ?? '' })
     }
