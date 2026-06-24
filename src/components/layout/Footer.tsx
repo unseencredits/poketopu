@@ -45,26 +45,12 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Buy me a coffee */}
-        <div className="mt-10 rounded-2xl border border-yellow-100 bg-yellow-50/60 px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800">⚡ Poketopu&apos;yu sevdin mi?</p>
-            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-              Bu platform topluluğun ihtiyaçlarını karşılamak için tamamen hobi olarak yapıldı.
-              Sunucu maliyetlerini cebimizden karşılıyoruz. İstersen bize bir kahve ısmarlayabilirsin ☕
-            </p>
-          </div>
-          <a
-            href="https://www.buymeacoffee.com/poketopu"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-sm font-semibold transition-colors"
-          >
-            ☕ Kahve Ismarla
-          </a>
-        </div>
-
         <div className="mt-8 pt-8 border-t border-gray-200 space-y-3 text-center text-xs text-gray-400">
+          <p className="text-gray-500">
+            Bu platform, topluluğun ihtiyaçlarını karşılamak amacıyla tamamen hobi olarak geliştirilmektedir.
+            Sunucu ve geliştirme maliyetlerini kendi imkânlarımızla karşılıyoruz.
+            Platformu kullanan, katkıda bulunan ve çevresine duyuran herkese teşekkür ederiz.
+          </p>
           <p>
             Poketopu bir ilan ve eşleşme platformudur. Ödeme, kargo ve teslimat işlemleri kullanıcılar
             arasında doğrudan gerçekleşir; Poketopu bu işlemlere taraf değildir ve herhangi bir güvence sunmaz.
