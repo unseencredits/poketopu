@@ -42,6 +42,7 @@ export default function ListingGrid({ listings, emptyMessage = 'Sonuç bulunamad
                     fill
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                     className="object-contain p-3 group-hover:scale-105 transition-transform duration-300"
+                    unoptimized={photo.startsWith('https://images.pokemontcg.io')}
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
