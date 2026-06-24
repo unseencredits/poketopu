@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useCallback } from 'react'
 import { X, ChevronDown } from 'lucide-react'
 import { CONDITIONS, type Condition } from '@/types/index'
+import { Input } from '@/components/ui/input'
 
 const SORT_OPTIONS = [
   { value: 'yeni',       label: 'En Yeni' },
