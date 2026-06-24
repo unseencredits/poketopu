@@ -48,7 +48,8 @@ const SERIES_ORDER = [
   'Base',
 ]
 
-// 5 dakika sunucu cache'i — cookie bağımsız anon client kullanır
+// ─── Set sayımları — 5 dk cache, ilan değişince invalidate ────────────────────
+
 const getSetListingCounts = unstable_cache(
   async (): Promise<Record<string, number>> => {
     const supabase = createSupabaseAnon(
@@ -74,63 +75,64 @@ const getSetListingCounts = unstable_cache(
   { revalidate: 300, tags: ['kartlar-listing'] },
 )
 
-// Set kartları 2 dk cache'lenir; condition verisi de saklanır
-const getProductsInSetCached = unstable_cache(
-  async (setId: string): Promise<ProductCard[]> => {
-    const supabase = createSupabaseAnon(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    )
-    const { data: prods } = await supabase
-      .from('products').select('id').eq('set_id', setId)
-    const productIds = (prods ?? []).map((p: { id: string }) => p.id)
-    if (!productIds.length) return []
+// ─── Set içi kartlar — cache YOK, her zaman taze veri ────────────────────────
+// unstable_cache kaldırıldı: revalidateTag stale-while-revalidate semantiği
+// nedeniyle ilan oluşturduktan sonra ilk ziyarette hâlâ eski veriyi dönüyordu.
+// Set sayfası zaten searchParams yüzünden dynamic render ediliyor; ekstra
+// cache katmanı güvenilirliği bozmaktan başka işe yaramıyordu.
 
-    const { data } = await supabase
-      .from('listings')
-      .select('product_id, price, condition, featured_until, product:products(id,name,set_name,number,image_url)')
-      .eq('status', 'active')
-      .eq('category', 'card')
-      .in('product_id', productIds)
-      .limit(2000)
+async function fetchProductsInSet(setId: string): Promise<ProductCard[]> {
+  const supabase = createSupabaseAnon(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  )
 
-    const map = new Map<string, ProductCard>()
-    for (const l of data ?? []) {
-      if (!l.product_id || !l.product) continue
-      const p = l.product as unknown as {
-        id: string; name: string; set_name: string | null
-        number: string | null; image_url: string | null
-      }
-      const isFeatured = !!(l.featured_until && new Date(l.featured_until) > new Date())
-      const existing = map.get(l.product_id)
-      if (existing) {
-        existing.count++
-        if (l.price < existing.minPrice) existing.minPrice = l.price
-        if (l.condition && !existing.conditions.includes(l.condition)) {
-          existing.conditions.push(l.condition)
-        }
-        if (isFeatured) existing.isFeatured = true
-      } else {
-        map.set(l.product_id, {
-          id: p.id, name: p.name, set_name: p.set_name,
-          number: p.number, image_url: p.image_url,
-          count: 1, minPrice: l.price,
-          conditions: l.condition ? [l.condition] : [],
-          isFeatured,
-        })
-      }
+  // Tek sorguda join — set_id filtresi products tablosuna uygulanıyor
+  const { data } = await supabase
+    .from('listings')
+    .select('product_id, price, condition, featured_until, product:products!inner(id,name,set_name,set_id,number,image_url)')
+    .eq('status', 'active')
+    .eq('category', 'card')
+    .not('product_id', 'is', null)
+    .eq('products.set_id', setId)
+    .limit(2000)
+
+  const map = new Map<string, ProductCard>()
+  for (const l of data ?? []) {
+    if (!l.product_id || !l.product) continue
+    const p = l.product as unknown as {
+      id: string; name: string; set_name: string | null
+      number: string | null; image_url: string | null; set_id: string | null
     }
-    return Array.from(map.values())
-  },
-  ['set-products'],
-  { revalidate: 120, tags: ['kartlar-listing'] },
-)
+    // set_id filtresi sorgu düzeyinde uygulanıyor; JS doğrulama ekstra güvenlik
+    if (p.set_id !== setId) continue
+    const isFeatured = !!(l.featured_until && new Date(l.featured_until) > new Date())
+    const existing = map.get(l.product_id)
+    if (existing) {
+      existing.count++
+      if (l.price < existing.minPrice) existing.minPrice = l.price
+      if (l.condition && !existing.conditions.includes(l.condition)) {
+        existing.conditions.push(l.condition)
+      }
+      if (isFeatured) existing.isFeatured = true
+    } else {
+      map.set(l.product_id, {
+        id: p.id, name: p.name, set_name: p.set_name,
+        number: p.number, image_url: p.image_url,
+        count: 1, minPrice: l.price,
+        conditions: l.condition ? [l.condition] : [],
+        isFeatured,
+      })
+    }
+  }
+  return Array.from(map.values())
+}
 
 async function getProductsInSet(
   setId: string,
   filters: Filters = {},
 ): Promise<{ products: ProductCard[]; total: number }> {
-  let products = await getProductsInSetCached(setId)
+  let products = await fetchProductsInSet(setId)
 
   if (filters.kondisyon) products = products.filter(p => p.conditions.includes(filters.kondisyon!))
   if (filters.min) products = products.filter(p => p.minPrice >= Number(filters.min))
