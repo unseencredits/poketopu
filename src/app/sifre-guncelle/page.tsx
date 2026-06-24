@@ -14,13 +14,27 @@ export default function SifreGuncellePage() {
   const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState<'checking' | 'ok' | 'invalid'>('checking')
 
-  // Supabase e-posta bağlantısından gelen recovery session'ı yakala
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setReady(true)
+
+    // PKCE flow: callback zaten session kurdu, direkt kontrol et
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setReady('ok')
+        return
+      }
+      // Eski hash flow için fallback
+      supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+          setReady('ok')
+        }
+      })
+      // 3 saniye sonra hâlâ session yoksa geçersiz say
+      setTimeout(() => {
+        setReady(prev => prev === 'checking' ? 'invalid' : prev)
+      }, 3000)
     })
   }, [])
 
@@ -59,11 +73,22 @@ export default function SifreGuncellePage() {
           <p className="text-sm text-gray-500 mt-1">En az 6 karakter giriniz.</p>
         </div>
 
-        {!ready ? (
+        {ready === 'checking' && (
           <div className="text-center text-sm text-gray-400 py-8">
             Bağlantı doğrulanıyor...
           </div>
-        ) : (
+        )}
+
+        {ready === 'invalid' && (
+          <div className="text-center space-y-4 py-8">
+            <p className="text-sm text-red-600 font-medium">Bağlantı geçersiz veya süresi dolmuş.</p>
+            <Link href="/sifre-sifirla" className="text-sm text-primary hover:underline">
+              Yeni sıfırlama bağlantısı al →
+            </Link>
+          </div>
+        )}
+
+        {ready === 'ok' && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="password">Yeni Şifre</Label>

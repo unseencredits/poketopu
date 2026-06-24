@@ -20,6 +20,7 @@ import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from 
 import { featureListing } from '@/app/actions/featuring'
 import { revalidateAfterListing } from '@/app/actions/revalidate'
 import KoleksiyonTab from '@/components/collection/KoleksiyonTab'
+import AyarlarTab from '@/components/profil/AyarlarTab'
 
 interface OfferItem {
   id: string
@@ -709,6 +710,7 @@ export default function ProfilPage() {
                 { value: 'koleksiyon', label: 'Koleksiyon',  newCount: 0,         totalCount: myCollections.length },
                 { value: 'fiyatlar',   label: 'Fiyat Takibi', newCount: 0,       totalCount: myWatchlist.length },
                 { value: 'teklifler',  label: 'Teklifler',   newCount: newOffers, totalCount: pendingOffers.length },
+                { value: 'ayarlar',    label: 'Ayarlar',     newCount: 0,         totalCount: 0 },
               ].map(({ value, label, newCount, totalCount }) => (
                 <TabsTrigger
                   key={value}
@@ -1575,6 +1577,13 @@ export default function ProfilPage() {
               </>
             )
           })()}
+        </TabsContent>
+
+        {/* ── AYARLAR ── */}
+        <TabsContent value="ayarlar" className="mt-3">
+          {profile && (
+            <AyarlarTab profile={profile as Profile & { username_updated_at?: string | null }} />
+          )}
         </TabsContent>
 
       </Tabs>

@@ -20,7 +20,7 @@ export default function SifreSifirlaPage() {
 
     const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/sifre-guncelle`,
+      redirectTo: `${window.location.origin}/auth/callback?redirect_to=/sifre-guncelle`,
     })
 
     if (error) {

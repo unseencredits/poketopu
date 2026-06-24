@@ -1,11 +1,29 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import type { Metadata } from 'next'
-
-export const metadata: Metadata = { title: 'Hoş Geldin!' }
 
 export default function EmailOnayPage() {
+  const router = useRouter()
+  const [countdown, setCountdown] = useState(6)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCountdown(n => {
+        if (n <= 1) {
+          clearInterval(interval)
+          router.push('/')
+          return 0
+        }
+        return n - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [router])
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm text-center">
@@ -40,7 +58,14 @@ export default function EmailOnayPage() {
           </Button>
         </Link>
 
-        <Link href="/ilan-ver" className="block text-sm text-gray-400 hover:text-gray-600 transition-colors">
+        <p className="text-sm text-gray-400">
+          {countdown > 0
+            ? <>{countdown} saniye sonra otomatik yönlendiriliyorsun…</>
+            : <>Yönlendiriliyorsun…</>
+          }
+        </p>
+
+        <Link href="/ilan-ver" className="block text-sm text-gray-400 hover:text-gray-600 transition-colors mt-2">
           İlan vermek istiyorum →
         </Link>
       </div>
