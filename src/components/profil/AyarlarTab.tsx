@@ -5,15 +5,16 @@ import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
-import { changeUsername, changePassword, changeEmail, deleteAccount } from '@/app/actions/account'
+import { CheckCircle, AlertCircle, ChevronDown, ChevronUp, Mail } from 'lucide-react'
+import { changeUsername, changePassword, deleteAccount } from '@/app/actions/account'
 import type { Profile } from '@/types'
 
 interface Props {
   profile: Profile & { username_updated_at?: string | null }
+  email: string | null
 }
 
-type SectionKey = 'username' | 'password' | 'email' | 'delete'
+type SectionKey = 'username' | 'password' | 'delete'
 
 function Feedback({ ok, msg }: { ok: boolean; msg: string }) {
   return (
@@ -27,7 +28,7 @@ function Feedback({ ok, msg }: { ok: boolean; msg: string }) {
   )
 }
 
-export default function AyarlarTab({ profile }: Props) {
+export default function AyarlarTab({ profile, email }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState<SectionKey | null>(null)
 
@@ -41,11 +42,6 @@ export default function AyarlarTab({ profile }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordFeedback, setPasswordFeedback] = useState<{ ok: boolean; msg: string } | null>(null)
-
-  // Email
-  const [newEmail, setNewEmail] = useState('')
-  const [emailLoading, setEmailLoading] = useState(false)
-  const [emailFeedback, setEmailFeedback] = useState<{ ok: boolean; msg: string } | null>(null)
 
   // Delete
   const [deleteConfirm, setDeleteConfirm] = useState('')
@@ -89,20 +85,6 @@ export default function AyarlarTab({ profile }: Props) {
     }
   }
 
-  async function handleEmail(e: React.FormEvent) {
-    e.preventDefault()
-    setEmailLoading(true)
-    setEmailFeedback(null)
-    const result = await changeEmail(newEmail)
-    setEmailLoading(false)
-    if (result.error) {
-      setEmailFeedback({ ok: false, msg: result.error })
-    } else {
-      setEmailFeedback({ ok: true, msg: 'Onay e-postası gönderildi. Yeni adresini kontrol et.' })
-      setNewEmail('')
-    }
-  }
-
   async function handleDelete(e: React.FormEvent) {
     e.preventDefault()
     if (deleteConfirm !== 'HESABIMI SİL') {
@@ -116,19 +98,27 @@ export default function AyarlarTab({ profile }: Props) {
     if (result.error) {
       setDeleteFeedback({ ok: false, msg: result.error })
     } else {
-      router.push('/?hesap=silindi')
+      router.push('/')
     }
   }
 
   const sections: { key: SectionKey; label: string; desc: string }[] = [
     { key: 'username', label: 'Kullanıcı Adı Değiştir', desc: 'Yılda 1 kez değiştirilebilir' },
     { key: 'password', label: 'Şifre Değiştir', desc: 'Yeni bir şifre belirle' },
-    { key: 'email',    label: 'E-posta Değiştir', desc: 'Onay e-postası gönderilir' },
     { key: 'delete',   label: 'Hesabı Sil', desc: 'Geri alınamaz' },
   ]
 
   return (
     <div className="space-y-2">
+      {/* Kayıtlı e-posta — sadece bilgi */}
+      <div className="bg-white border border-gray-100 rounded-2xl px-4 py-4 flex items-center gap-3">
+        <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
+        <div>
+          <p className="text-xs text-gray-400">Kayıtlı e-posta</p>
+          <p className="text-sm font-medium text-gray-700">{email ?? '—'}</p>
+        </div>
+      </div>
+
       {sections.map(({ key, label, desc }) => (
         <div key={key} className={`bg-white border rounded-2xl overflow-hidden ${key === 'delete' ? 'border-red-100' : 'border-gray-100'}`}>
           <button
@@ -182,19 +172,6 @@ export default function AyarlarTab({ profile }: Props) {
                   {passwordFeedback && <Feedback {...passwordFeedback} />}
                   <Button type="submit" disabled={passwordLoading} className="h-10 bg-primary text-white hover:bg-primary/90 rounded-xl">
                     {passwordLoading ? 'Güncelleniyor…' : 'Şifremi Güncelle'}
-                  </Button>
-                </form>
-              )}
-
-              {key === 'email' && (
-                <form onSubmit={handleEmail} className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label>Yeni e-posta adresi</Label>
-                    <Input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="yeni@mail.com" className="h-10" required />
-                  </div>
-                  {emailFeedback && <Feedback {...emailFeedback} />}
-                  <Button type="submit" disabled={emailLoading} className="h-10 bg-primary text-white hover:bg-primary/90 rounded-xl">
-                    {emailLoading ? 'Gönderiliyor…' : 'Onay Gönder'}
                   </Button>
                 </form>
               )}

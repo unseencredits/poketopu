@@ -19,6 +19,7 @@ function GirisForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileKey, setTurnstileKey] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,7 +42,9 @@ function GirisForm() {
 
     const ok = await verifyTurnstile(turnstileToken)
     if (!ok) {
-      setError('Doğrulama başarısız. Sayfayı yenileyip tekrar deneyin.')
+      setError('Robot doğrulaması başarısız oldu, lütfen tekrar deneyin.')
+      setTurnstileToken(null)
+      setTurnstileKey(k => k + 1)
       setLoading(false)
       return
     }
@@ -51,6 +54,8 @@ function GirisForm() {
 
     if (error) {
       setError('E-posta veya şifre hatalı.')
+      setTurnstileToken(null)
+      setTurnstileKey(k => k + 1)
       setLoading(false)
       return
     }
@@ -99,7 +104,7 @@ function GirisForm() {
           />
         </div>
 
-        <TurnstileWidget onVerify={setTurnstileToken} />
+        <TurnstileWidget key={turnstileKey} onVerify={setTurnstileToken} />
 
         {error && (
           <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>

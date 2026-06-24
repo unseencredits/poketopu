@@ -101,6 +101,7 @@ export default function ProfilPage() {
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [myTrades, setMyTrades] = useState<Trade[]>([])
   const [myCollections, setMyCollections] = useState<CollectionItem[]>([])
   const [myWatchlist, setMyWatchlist] = useState<WatchlistItem[]>([])
@@ -179,6 +180,7 @@ export default function ProfilPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/giris'); return }
       setUserId(user.id)
+      setUserEmail(user.email ?? null)
 
       const [{ data: prof }, { data: st }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
@@ -1582,7 +1584,7 @@ export default function ProfilPage() {
         {/* ── AYARLAR ── */}
         <TabsContent value="ayarlar" className="mt-3">
           {profile && (
-            <AyarlarTab profile={profile as Profile & { username_updated_at?: string | null }} />
+            <AyarlarTab profile={profile as Profile & { username_updated_at?: string | null }} email={userEmail} />
           )}
         </TabsContent>
 
