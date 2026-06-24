@@ -76,6 +76,24 @@ export async function changeEmail(newEmail: string) {
   return { success: true }
 }
 
+export async function updatePasswordViaRecovery(newPassword: string) {
+  if (newPassword.length < 6) return { error: 'Şifre en az 6 karakter olmalıdır.' }
+
+  // Server-side session'dan kullanıcıyı al
+  const supabase = await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+  // Session cookie'si yoksa (recovery hash sadece client-side'da işlendi),
+  // user ID'sini client'tan alarak admin client ile güncelle
+  if (userError || !user) return { error: 'Oturum bulunamadı. Lütfen bağlantıyı tekrar kullanın.' }
+
+  // Admin client ile şifreyi güncelle — session moduna bağımlılık yok
+  const admin = createAdminClient()
+  const { error } = await admin.auth.admin.updateUserById(user.id, { password: newPassword })
+  if (error) return { error: 'Şifre güncellenemedi: ' + error.message }
+  return { success: true }
+}
+
 export async function deleteAccount() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

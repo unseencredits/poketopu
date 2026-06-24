@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
+import { updatePasswordViaRecovery } from '@/app/actions/account'
 
 export default function SifreGuncellePage() {
   const router = useRouter()
@@ -19,22 +20,21 @@ export default function SifreGuncellePage() {
   useEffect(() => {
     const supabase = createClient()
 
-    // PKCE flow: callback zaten session kurdu, direkt kontrol et
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setReady('ok')
         return
       }
-      // Eski hash flow için fallback
-      supabase.auth.onAuthStateChange((event) => {
+      // Hash tabanlı recovery için dinle
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
         if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
           setReady('ok')
         }
       })
-      // 3 saniye sonra hâlâ session yoksa geçersiz say
       setTimeout(() => {
         setReady(prev => prev === 'checking' ? 'invalid' : prev)
-      }, 3000)
+        subscription.unsubscribe()
+      }, 4000)
     })
   }, [])
 
@@ -52,15 +52,17 @@ export default function SifreGuncellePage() {
     setLoading(true)
     setError(null)
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.updateUser({ password })
+    const result = await updatePasswordViaRecovery(password)
 
-    if (error) {
-      setError('Şifre güncellenemedi. Bağlantı süresi dolmuş olabilir.')
+    if (result.error) {
+      setError(result.error)
       setLoading(false)
       return
     }
 
+    // Başarılı — oturumu kapat, giriş sayfasına yönlendir
+    const supabase = createClient()
+    await supabase.auth.signOut()
     router.push('/giris?sifre=guncellendi')
   }
 
