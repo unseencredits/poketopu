@@ -66,7 +66,13 @@ export async function GET() {
           { cache: 'no-store' },
         )
         if (!res.ok) return [] as GithubCard[]
-        return res.json() as Promise<GithubCard[]>
+        const cards = await res.json() as GithubCard[]
+        // GitHub JSON'ındaki kartlarda set bilgisi olmayabilir;
+        // set listesinden alarak her karta enjekte et
+        return cards.map(c => ({
+          ...c,
+          set: { id: set.id, name: set.name, series: set.series, total: set.total },
+        }))
       }),
     )
     allCards.push(...results.flat())
