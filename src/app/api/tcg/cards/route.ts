@@ -1,14 +1,8 @@
-import { unstable_cache } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
-import { searchCards } from '@/lib/pokemon-tcg'
-import type { TCGCard } from '@/lib/pokemon-tcg'
+// Kart arama — Supabase products tablosunu sorgular (dış API yok).
+// Import yapıldıktan sonra tüm ~20K kart yerel DB'de olur: hızlı ve eksiksiz.
 
-// TCG API sonuçlarını önbellekle — aynı sorgu 1 saat geçerli
-const cachedSearchCards = unstable_cache(
-  async (q: string, setId?: string) => searchCards(q, 1, setId),
-  ['tcg-cards-search'],
-  { revalidate: 3600 },
-)
+import { createClient } from '@/lib/supabase/server'
+import type { TCGCard } from '@/lib/pokemon-tcg'
 
 type LocalProduct = {
   id: string; name: string; number: string | null; rarity: string | null
@@ -39,39 +33,29 @@ export async function GET(request: Request) {
 
   if (!q.trim() && !setId) return Response.json({ data: [], totalCount: 0 })
 
-  // TCG API (önbellekli, 1 saat) — tam katalog
-  const { data: apiCards, totalCount } = await cachedSearchCards(q.trim(), setId || undefined)
+  const supabase = await createClient()
 
-  // Yerel DB'deki kartları da ekle (platformda ilan verilmiş ama API'de sayfa dışı kalanlar)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = supabase
+    .from('products')
+    .select('id,name,set_id,set_name,series,number,rarity,image_url,image_url_hires,types,supertype,subtypes,hp')
+    .limit(100)
+
   if (q.trim()) {
-    const supabase = await createClient()
     const words = q.trim().split(/\s+/).filter(Boolean)
-
-    let localQ = supabase
-      .from('products')
-      .select('id,name,set_id,set_name,series,number,rarity,image_url,image_url_hires,types,supertype,subtypes,hp')
-      .order('name')
-      .limit(24)
-
     for (const word of words) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      localQ = (localQ as any).or(`name.ilike.%${word}%,number.ilike.%${word}%`)
-    }
-    if (setId) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      localQ = (localQ as any).eq('set_id', setId)
-    }
-
-    const { data: local } = await localQ
-    if (local && local.length > 0) {
-      const apiIds = new Set(apiCards.map((c: TCGCard) => c.id))
-      const extras = (local as LocalProduct[])
-        .filter(p => !apiIds.has(p.id))
-        .map(toTCGCard)
-      const merged = [...apiCards, ...extras]
-      return Response.json({ data: merged, totalCount: totalCount + extras.length })
+      // "19/68" formatında numarayı "19" olarak da ara
+      const numBase = /^\d{1,4}\/\d+$/.test(word) ? word.split('/')[0] : word
+      query = query.or(`name.ilike.%${word}%,number.ilike.%${numBase}%`)
     }
   }
 
-  return Response.json({ data: apiCards, totalCount })
+  if (setId) query = query.eq('set_id', setId)
+
+  // Yeni setler (büyük ID ≈ yeni set) önce; aynı set içinde isme göre sırala
+  query = query.order('set_id', { ascending: false }).order('name', { ascending: true })
+
+  const { data } = await query
+  const cards = ((data ?? []) as LocalProduct[]).map(toTCGCard)
+  return Response.json({ data: cards, totalCount: cards.length })
 }
