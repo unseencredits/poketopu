@@ -363,6 +363,7 @@ async function SetCardsView({
                       fill
                       className="object-contain p-3"
                       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-16 h-22 rounded-lg bg-gray-200" />

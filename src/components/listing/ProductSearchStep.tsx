@@ -188,7 +188,7 @@ export default function ProductSearchStep({ category, onSelect }: Props) {
       {selected && (
         <div className="mb-4 p-3 rounded-xl border border-green-200 bg-green-50 flex items-center gap-3">
           <div className="relative h-12 w-9 flex-shrink-0">
-            <Image src={selected.images.small} alt={selected.name} fill sizes="40px" className="object-contain" />
+            <Image src={selected.images.small} alt={selected.name} fill sizes="40px" className="object-contain" unoptimized />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-gray-900 text-sm truncate">
@@ -228,7 +228,7 @@ export default function ProductSearchStep({ category, onSelect }: Props) {
                   }`}
                 >
                   <div className="relative h-20 w-14">
-                    <Image src={card.images.small} alt={card.name} fill sizes="60px" className="object-contain" />
+                    <Image src={card.images.small} alt={card.name} fill sizes="60px" className="object-contain" unoptimized />
                   </div>
                   <div className="w-full">
                     <p className="text-xs font-semibold text-gray-900 text-center line-clamp-1 leading-tight">{card.name}</p>

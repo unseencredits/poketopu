@@ -215,7 +215,7 @@ export default function TakasVerPage() {
                     {/* Kart başlığı */}
                     <div className="flex items-center gap-3">
                       <div className="relative h-12 w-9 flex-shrink-0">
-                        <Image src={card.images.small} alt={card.name} fill sizes="40px" className="object-contain" />
+                        <Image src={card.images.small} alt={card.name} fill sizes="40px" className="object-contain" unoptimized />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{card.name}</p>
@@ -336,7 +336,7 @@ export default function TakasVerPage() {
                           }`}
                         >
                           <div className="relative h-16 w-11">
-                            <Image src={card.images.small} alt={card.name} fill sizes="48px" className="object-contain" />
+                            <Image src={card.images.small} alt={card.name} fill sizes="48px" className="object-contain" unoptimized />
                           </div>
                           <p className="text-[11px] font-semibold text-gray-900 line-clamp-1 w-full">{card.name}</p>
                           <p className="text-[10px] text-gray-400 truncate w-full">{card.set.name}</p>

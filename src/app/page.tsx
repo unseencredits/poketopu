@@ -276,6 +276,7 @@ export default async function HomePage() {
                     alt={name}
                     fill
                     className="object-contain object-left mix-blend-multiply"
+                    unoptimized
                   />
                 </div>
                 <p className="text-xs font-semibold text-gray-800 leading-tight">{name}</p>
