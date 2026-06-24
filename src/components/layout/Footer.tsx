@@ -45,12 +45,17 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-gray-200 space-y-3 text-center text-xs text-gray-400">
-          <p className="text-gray-500">
+        {/* Teşekkür kartı */}
+        <div className="mt-10 rounded-2xl border border-yellow-100 bg-yellow-50/60 px-5 py-4">
+          <p className="text-sm font-semibold text-gray-800 mb-1">🌟 Poketopu hakkında</p>
+          <p className="text-xs text-gray-500 leading-relaxed">
             Bu platform, topluluğun ihtiyaçlarını karşılamak amacıyla tamamen hobi olarak geliştirilmektedir.
             Sunucu ve geliştirme maliyetlerini kendi imkânlarımızla karşılıyoruz.
-            Platformu kullanan, katkıda bulunan ve çevresine duyuran herkese teşekkür ederiz.
+            Platformu kullanan, katkıda bulunan ve çevresine duyuran herkese teşekkür ederiz ❤️
           </p>
+        </div>
+
+        <div className="mt-8 pt-8 border-t border-gray-200 space-y-3 text-center text-xs text-gray-400">
           <p>
             Poketopu bir ilan ve eşleşme platformudur. Ödeme, kargo ve teslimat işlemleri kullanıcılar
             arasında doğrudan gerçekleşir; Poketopu bu işlemlere taraf değildir ve herhangi bir güvence sunmaz.
