@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MessageSquarePlus, X, Send, CheckCircle } from 'lucide-react'
 import { submitFeedback } from '@/app/actions/feedback'
+import { createClient } from '@/lib/supabase/client'
 
 type State = 'idle' | 'open' | 'sending' | 'done'
 
@@ -11,6 +12,13 @@ export default function FeedbackButton() {
   const [message, setMessage] = useState('')
   const [credited, setCredited] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data: { user } }) => {
+      setIsLoggedIn(!!user)
+    })
+  }, [])
 
   async function send() {
     if (!message.trim() || state === 'sending') return
@@ -32,6 +40,8 @@ export default function FeedbackButton() {
     setError(null)
     setCredited(false)
   }
+
+  if (!isLoggedIn) return null
 
   if (state === 'idle') {
     return (

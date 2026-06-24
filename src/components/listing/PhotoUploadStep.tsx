@@ -10,13 +10,15 @@ const MAX_PHOTOS = 4
 
 interface Props {
   userId: string
+  category?: string
   onNext: (photoUrls: string[]) => void
 }
 
-export default function PhotoUploadStep({ userId, onNext }: Props) {
+export default function PhotoUploadStep({ userId, category, onNext }: Props) {
   const [photos, setPhotos] = useState<{ file?: File; url: string; uploading?: boolean }[]>([])
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const requiresPhoto = category === 'sealed' || category === 'accessory'
 
   async function handleFiles(files: FileList | null) {
     if (!files) return
@@ -125,12 +127,20 @@ export default function PhotoUploadStep({ userId, onNext }: Props) {
         </div>
       )}
 
+      {requiresPhoto && photos.length === 0 && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 px-3 py-2 rounded-xl mb-3">
+          Bu kategoride en az 1 fotoğraf zorunludur.
+        </p>
+      )}
+
       <button
         onClick={() => onNext(photos.map(p => p.url))}
-        disabled={uploading}
+        disabled={uploading || (requiresPhoto && photos.length === 0)}
         className="w-full h-11 bg-primary text-white rounded-xl font-medium disabled:opacity-40 hover:bg-primary/90 transition-colors"
       >
-        {photos.length === 0 ? 'Fotoğrafsız Devam Et' : `${photos.length} Fotoğrafla Devam Et`}
+        {photos.length === 0
+          ? (requiresPhoto ? 'Fotoğraf Ekle — Zorunlu' : 'Fotoğrafsız Devam Et')
+          : `${photos.length} Fotoğrafla Devam Et`}
       </button>
     </div>
   )

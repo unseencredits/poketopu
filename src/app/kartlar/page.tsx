@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Suspense } from 'react'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Sparkles } from 'lucide-react'
 import { unstable_cache } from 'next/cache'
 import { createClient as createSupabaseAnon } from '@supabase/supabase-js'
 import { getSets } from '@/lib/pokemon-tcg'
@@ -22,6 +22,7 @@ interface ProductCard {
   count: number
   minPrice: number
   conditions: string[]
+  isFeatured: boolean
 }
 
 interface Filters {
@@ -87,7 +88,7 @@ const getProductsInSetCached = unstable_cache(
 
     const { data } = await supabase
       .from('listings')
-      .select('product_id, price, condition, product:products(id,name,set_name,number,image_url)')
+      .select('product_id, price, condition, featured_until, product:products(id,name,set_name,number,image_url)')
       .eq('status', 'active')
       .eq('category', 'card')
       .in('product_id', productIds)
@@ -100,6 +101,7 @@ const getProductsInSetCached = unstable_cache(
         id: string; name: string; set_name: string | null
         number: string | null; image_url: string | null
       }
+      const isFeatured = !!(l.featured_until && new Date(l.featured_until) > new Date())
       const existing = map.get(l.product_id)
       if (existing) {
         existing.count++
@@ -107,12 +109,14 @@ const getProductsInSetCached = unstable_cache(
         if (l.condition && !existing.conditions.includes(l.condition)) {
           existing.conditions.push(l.condition)
         }
+        if (isFeatured) existing.isFeatured = true
       } else {
         map.set(l.product_id, {
           id: p.id, name: p.name, set_name: p.set_name,
           number: p.number, image_url: p.image_url,
           count: 1, minPrice: l.price,
           conditions: l.condition ? [l.condition] : [],
+          isFeatured,
         })
       }
     }
@@ -343,7 +347,11 @@ async function SetCardsView({
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
           {products.map(p => (
             <Link key={p.id} href={`/kart/${p.id}`} className="group block">
-              <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden hover:border-gray-200 hover:shadow-sm transition-all">
+              <div className={`rounded-2xl border bg-white overflow-hidden transition-all ${
+                p.isFeatured
+                  ? 'border-primary/50 shadow-sm shadow-primary/10 hover:border-primary/70'
+                  : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
+              }`}>
                 <div
                   className="relative bg-gray-50 flex items-center justify-center"
                   style={{ aspectRatio: '5/7' }}
@@ -359,8 +367,16 @@ async function SetCardsView({
                   ) : (
                     <div className="w-16 h-22 rounded-lg bg-gray-200" />
                   )}
+                  {p.isFeatured && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary text-white uppercase tracking-wide">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Öne Çıkan
+                      </span>
+                    </div>
+                  )}
                   {p.count > 1 && (
-                    <span className="absolute top-2 right-2 bg-primary text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    <span className="absolute top-2 right-2 bg-primary/80 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                       {p.count} ilan
                     </span>
                   )}

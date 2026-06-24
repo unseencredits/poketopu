@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, Package, Truck, Users } from 'lucide-react'
 import ConditionBadge from '@/components/shared/ConditionBadge'
 import MessageButton from '@/components/listing/MessageButton'
 import PriceHistoryChart from '@/components/shared/PriceHistoryChart'
@@ -19,6 +19,8 @@ interface SellerListing {
   condition: Condition
   grader: string | null
   grade: number | null
+  city: string | null
+  shipping: string | null
   notes: string | null
   photos: string[]
   created_at: string
@@ -191,6 +193,34 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
             ) : (
               <p className="text-xs text-gray-400 italic">Satıcı açıklama eklememiş.</p>
             )}
+            {(selected.city || selected.shipping) && (
+              <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-red-100/60">
+                {selected.city && (
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                    <MapPin className="h-3 w-3 text-gray-400" />
+                    {selected.city}
+                  </span>
+                )}
+                {selected.shipping === 'kargo' && (
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                    <Package className="h-3 w-3 text-gray-400" />
+                    Kargo
+                  </span>
+                )}
+                {selected.shipping === 'elden' && (
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                    <Users className="h-3 w-3 text-gray-400" />
+                    Elden teslim
+                  </span>
+                )}
+                {selected.shipping === 'her_ikisi' && (
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                    <Truck className="h-3 w-3 text-gray-400" />
+                    Kargo veya elden
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="max-w-sm mx-auto lg:mx-0 w-full">
@@ -263,6 +293,34 @@ export default function KartDetailClient({ product, listings, priceHistory, tcgP
                           <span className="text-xs text-gray-400">{listing.photos.length} fotoğraf</span>
                         )}
                       </div>
+                      {(listing.city || listing.shipping) && (
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {listing.city && (
+                            <span className="inline-flex items-center gap-0.5 text-xs text-gray-400">
+                              <MapPin className="h-3 w-3" />
+                              {listing.city}
+                            </span>
+                          )}
+                          {listing.shipping === 'kargo' && (
+                            <span className="inline-flex items-center gap-0.5 text-xs text-gray-400">
+                              <Package className="h-3 w-3" />
+                              Kargo
+                            </span>
+                          )}
+                          {listing.shipping === 'elden' && (
+                            <span className="inline-flex items-center gap-0.5 text-xs text-gray-400">
+                              <Users className="h-3 w-3" />
+                              Elden
+                            </span>
+                          )}
+                          {listing.shipping === 'her_ikisi' && (
+                            <span className="inline-flex items-center gap-0.5 text-xs text-gray-400">
+                              <Truck className="h-3 w-3" />
+                              Kargo/Elden
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <p className="text-xl font-bold text-gray-900 flex-shrink-0 leading-tight">
                       {listing.price.toLocaleString('tr-TR')} ₺

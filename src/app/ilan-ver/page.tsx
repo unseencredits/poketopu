@@ -154,6 +154,20 @@ export default function IlanVerPage() {
       return
     }
 
+    // Takas havuzuna ekle
+    if (data.swapOpen && data.productId && userId) {
+      await supabase.from('trades').insert({
+        user_id: userId,
+        type: 'have',
+        product_id: data.productId,
+        custom_title: null,
+        condition: data.condition ?? null,
+        notes: data.notes?.trim() || null,
+        photos: [],
+        status: 'active',
+      })
+    }
+
     await revalidateAfterListing()
     router.push(`/ilan/${listing.id}?yeni=1`)
   }
@@ -280,6 +294,7 @@ export default function IlanVerPage() {
             <div>
               <PhotoUploadStep
                 userId={userId}
+                category={data.category}
                 onNext={photoUrls => publish(photoUrls)}
               />
               {error && (

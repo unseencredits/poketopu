@@ -11,6 +11,7 @@ import {
 import { addFeatureCredits } from '@/app/actions/featuring'
 import DeleteUserButton from './DeleteUserButton'
 import FeatureCreditButton from './FeatureCreditButton'
+import ConfirmButton from './ConfirmButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -174,9 +175,13 @@ export default async function AdminPage({ searchParams }: Props) {
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   <Link href={`/ilan/${listing.id}`} target="_blank" className="text-xs px-2 py-1 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100">Gör</Link>
-                  <form action={removeListing.bind(null, listing.id)}>
-                    <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100">Kaldır</button>
-                  </form>
+                  <ConfirmButton
+                    action={removeListing.bind(null, listing.id)}
+                    confirmMessage="Bu ilanı kaldırmak istediğinizden emin misiniz?"
+                    className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100"
+                  >
+                    Kaldır
+                  </ConfirmButton>
                 </div>
               </div>
             )
@@ -206,9 +211,13 @@ export default async function AdminPage({ searchParams }: Props) {
                   </div>
                   {trade.note && <p className="text-xs text-gray-400 mt-1 truncate">{trade.note}</p>}
                 </div>
-                <form action={removeTrade.bind(null, trade.id)}>
-                  <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex-shrink-0">Kaldır</button>
-                </form>
+                <ConfirmButton
+                  action={removeTrade.bind(null, trade.id)}
+                  confirmMessage="Bu takas ilanını kaldırmak istediğinizden emin misiniz?"
+                  className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex-shrink-0"
+                >
+                  Kaldır
+                </ConfirmButton>
               </div>
             )
           })}
@@ -259,9 +268,13 @@ export default async function AdminPage({ searchParams }: Props) {
                           <form action={approveEvent.bind(null, ev.id)}>
                             <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium">Onayla</button>
                           </form>
-                          <form action={rejectEvent.bind(null, ev.id)}>
-                            <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium">Reddet</button>
-                          </form>
+                          <ConfirmButton
+                            action={rejectEvent.bind(null, ev.id)}
+                            confirmMessage="Bu etkinliği reddetmek istediğinizden emin misiniz?"
+                            className="w-full text-xs px-3 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium"
+                          >
+                            Reddet
+                          </ConfirmButton>
                         </>
                       )}
                       <Link href={isEditing ? `/admin?tab=etkinlikler` : `/admin?tab=etkinlikler&edit=${ev.id}`}>
@@ -269,9 +282,13 @@ export default async function AdminPage({ searchParams }: Props) {
                           {isEditing ? 'Kapat' : 'Düzenle'}
                         </button>
                       </Link>
-                      <form action={deleteEvent.bind(null, ev.id)}>
-                        <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500">Sil</button>
-                      </form>
+                      <ConfirmButton
+                        action={deleteEvent.bind(null, ev.id)}
+                        confirmMessage="Bu etkinliği silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+                        className="w-full text-xs px-3 py-1 rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                      >
+                        Sil
+                      </ConfirmButton>
                     </div>
                   </div>
                 </div>
@@ -365,9 +382,13 @@ export default async function AdminPage({ searchParams }: Props) {
                           <form action={approvePartnerStore.bind(null, s.id)}>
                             <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium">Onayla</button>
                           </form>
-                          <form action={rejectPartnerStore.bind(null, s.id)}>
-                            <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium">Reddet</button>
-                          </form>
+                          <ConfirmButton
+                            action={rejectPartnerStore.bind(null, s.id)}
+                            confirmMessage="Bu mağaza başvurusunu reddetmek istediğinizden emin misiniz?"
+                            className="w-full text-xs px-3 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 font-medium"
+                          >
+                            Reddet
+                          </ConfirmButton>
                         </>
                       )}
                       <Link href={isEditing ? `/admin?tab=magazalar` : `/admin?tab=magazalar&edit=${s.id}`}>
@@ -375,9 +396,13 @@ export default async function AdminPage({ searchParams }: Props) {
                           {isEditing ? 'Kapat' : 'Düzenle'}
                         </button>
                       </Link>
-                      <form action={deletePartnerStore.bind(null, s.id)}>
-                        <button type="submit" className="w-full text-xs px-3 py-1 rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500">Sil</button>
-                      </form>
+                      <ConfirmButton
+                        action={deletePartnerStore.bind(null, s.id)}
+                        confirmMessage="Bu mağazayı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+                        className="w-full text-xs px-3 py-1 rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                      >
+                        Sil
+                      </ConfirmButton>
                     </div>
                   </div>
                 </div>
@@ -486,9 +511,13 @@ export default async function AdminPage({ searchParams }: Props) {
                 <FeatureCreditButton userId={u.id} currentCredits={u.feature_credits ?? 0} />
                 {!u.is_admin && (
                   <>
-                    <form action={banUser.bind(null, u.id)}>
-                      <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100">İlanları Kaldır</button>
-                    </form>
+                    <ConfirmButton
+                      action={banUser.bind(null, u.id)}
+                      confirmMessage={`@${u.username} kullanıcısının tüm ilanlarını kaldırmak istediğinizden emin misiniz?`}
+                      className="text-xs px-2 py-1 rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100"
+                    >
+                      İlanları Kaldır
+                    </ConfirmButton>
                     <DeleteUserButton userId={u.id} username={u.username} />
                   </>
                 )}

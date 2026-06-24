@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Profile, Store as StoreType, Listing, ListingStatus, Trade } from '@/types'
 
 import { featureListing } from '@/app/actions/featuring'
+import { revalidateAfterListing } from '@/app/actions/revalidate'
 import KoleksiyonTab from '@/components/collection/KoleksiyonTab'
 
 interface OfferItem {
@@ -128,6 +129,7 @@ export default function ProfilPage() {
   const [markingSold, setMarkingSold] = useState(false)
   const [featuringId, setFeaturingId] = useState<string | null>(null)
   const [featureNotif, setFeatureNotif] = useState<{ id: string; type: 'success' | 'error'; msg: string } | null>(null)
+  const [featureConfirmId, setFeatureConfirmId] = useState<string | null>(null)
 
   // Satın almadım
   const [disclaimId, setDisclaimId] = useState<string | null>(null)
@@ -453,6 +455,7 @@ export default function ProfilPage() {
     const { error } = await supabase.from('listings').update({ status: newStatus }).eq('id', listing.id)
     if (!error) {
       setListings(prev => prev.map(l => l.id === listing.id ? { ...l, status: newStatus as ListingStatus } : l))
+      await revalidateAfterListing()
     }
   }
 
@@ -475,6 +478,7 @@ export default function ProfilPage() {
       setListings(prev => prev.filter(l => l.id !== listingId))
       setConfirmDeleteId(null)
       router.refresh()
+      await revalidateAfterListing()
     }
   }
 
@@ -994,21 +998,9 @@ export default function ProfilPage() {
                           const isLoading = featuringId === listing.id
                           return (
                             <button
-                              onClick={async () => {
-                                setFeaturingId(listing.id)
+                              onClick={() => {
+                                setFeatureConfirmId(listing.id)
                                 setFeatureNotif(null)
-                                const res = await featureListing(listing.id)
-                                setFeaturingId(null)
-                                if (res.ok && res.featuredUntil) {
-                                  setListings(prev => prev.map(l =>
-                                    l.id === listing.id ? { ...l, featured_until: res.featuredUntil! } : l
-                                  ))
-                                  setFeatureNotif({ id: listing.id, type: 'success', msg: '7 gün öne çıkarıldı!' })
-                                  setTimeout(() => setFeatureNotif(n => n?.id === listing.id ? null : n), 4000)
-                                } else if (!res.ok) {
-                                  setFeatureNotif({ id: listing.id, type: 'error', msg: res.error ?? 'Hata oluştu.' })
-                                  setTimeout(() => setFeatureNotif(n => n?.id === listing.id ? null : n), 5000)
-                                }
                               }}
                               disabled={isLoading}
                               title={isFeaturedNow
@@ -1045,6 +1037,46 @@ export default function ProfilPage() {
                       <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-gray-500 hover:text-gray-700">İptal</button>
                     </div>
                   )}
+
+                  {featureConfirmId === listing.id && (() => {
+                    const isFeaturedNow = !!(listing.featured_until && new Date(listing.featured_until) > new Date())
+                    return (
+                      <div className="mx-4 mb-3 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl">
+                        <p className="text-sm text-amber-800 mb-2.5">
+                          <span className="font-semibold">1 kredi</span> karşılığında ilan{' '}
+                          {isFeaturedNow
+                            ? 'mevcut süreye 7 gün daha eklenerek öne çıkarılacaktır.'
+                            : '7 gün boyunca öne çıkarılacaktır.'}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={async () => {
+                              setFeatureConfirmId(null)
+                              setFeaturingId(listing.id)
+                              const res = await featureListing(listing.id)
+                              setFeaturingId(null)
+                              if (res.ok && res.featuredUntil) {
+                                setListings(prev => prev.map(l =>
+                                  l.id === listing.id ? { ...l, featured_until: res.featuredUntil! } : l
+                                ))
+                                setFeatureNotif({ id: listing.id, type: 'success', msg: '7 gün öne çıkarıldı!' })
+                                setTimeout(() => setFeatureNotif(n => n?.id === listing.id ? null : n), 4000)
+                              } else if (!res.ok) {
+                                setFeatureNotif({ id: listing.id, type: 'error', msg: res.error ?? 'Hata oluştu.' })
+                                setTimeout(() => setFeatureNotif(n => n?.id === listing.id ? null : n), 5000)
+                              }
+                            }}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors"
+                          >
+                            1 Kredi Kullan — Onayla
+                          </button>
+                          <button onClick={() => setFeatureConfirmId(null)} className="text-xs text-gray-500 hover:text-gray-700">
+                            İptal
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })()}
 
                   {featureNotif?.id === listing.id && (
                     <div className={`mx-4 mb-3 px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm ${

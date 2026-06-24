@@ -54,9 +54,13 @@ export default function ListingCard({ listing }: Props) {
         {/* Bilgi */}
         <div className="p-3">
           <p className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug">{title}</p>
-          {setName && (
+          {(listing.grader && listing.grade != null) ? (
+            <p className="text-xs font-bold text-violet-600 mt-0.5">
+              {listing.grader} {listing.grade % 1 === 0 ? listing.grade.toFixed(0) : listing.grade}
+            </p>
+          ) : setName ? (
             <p className="text-xs text-gray-400 mt-0.5 truncate">{setName}</p>
-          )}
+          ) : null}
 
           <div className="mt-2 flex items-end justify-between gap-2">
             <p className="text-base font-bold text-gray-900">
