@@ -56,6 +56,13 @@ export default function Footer() {
             sahiplerinin ticari markasıdır.
           </p>
           <p>© {new Date().getFullYear()} poketopu.com — Tüm hakları saklıdır.</p>
+          <p>
+            poketopu.com bir{' '}
+            <a href="http://ucstud.io/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 underline underline-offset-2">
+              Unseen Credits Studio
+            </a>{' '}
+            projesidir.
+          </p>
         </div>
       </div>
     </footer>
