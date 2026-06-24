@@ -50,8 +50,8 @@ export default function Footer() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-800">⚡ Poketopu&apos;yu sevdin mi?</p>
             <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-              Bu platform reklamsız, aboneluksüz ve tamamen hobi olarak yapıldı.
-              Sunucu maliyetlerini cebimizden karşılıyoruz — istersen bize bir kahve ısmarlayabilirsin ☕
+              Poketopu gönüllü olarak yapılıyor. Reklam yok, ücretli üyelik yok.
+              Sunucu masraflarını kendi cebimizden karşılıyoruz. Beğendiysen bir kahve ısmarlarsan seviniriz.
             </p>
           </div>
           <a
