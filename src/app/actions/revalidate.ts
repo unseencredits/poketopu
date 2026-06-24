@@ -1,9 +1,9 @@
 'use server'
 
-import { updateTag, revalidatePath } from 'next/cache'
+import { revalidateTag, revalidatePath } from 'next/cache'
 
 export async function revalidateAfterListing() {
-  updateTag('kartlar-listing')
+  revalidateTag('kartlar-listing')
   revalidatePath('/kartlar')
   revalidatePath('/ara')
   revalidatePath('/')
